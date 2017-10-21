@@ -1,0 +1,188 @@
+<?php namespace ProcessWire;
+
+/**
+ * @2017 Macrura
+ * ProcessWire CMS
+ */
+
+class SettingsFactory extends WireData implements Module, ConfigurableModule  {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' => __('Settings Factory', __FILE__),
+			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
+			'version' => 101,
+			'permanent' => false, 
+			'autoload' => true,
+			'icon' => 'check-square-o', 
+			'installs'	=> 'ProcessSettingsFactory'
+			);
+	}
+
+	/**
+	 * Data as used by the get/set functions
+	 *
+	 */
+	protected $data = array();
+
+	protected static $configDefaults = array(
+		'instructions' => '',
+	);
+
+	/**
+	 * Set our configuration defaults
+	 *
+	 */
+	public function __construct() {
+		$configDefaults = self::$configDefaults;
+		foreach($configDefaults as $key => $value) {
+			$this->set($key, $value); 
+		}
+	}
+
+
+	public function init() {
+
+		/**
+		 * Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
+		 */
+		$settingsPages = new PageArray();
+		$adminPages = $this->wire('pages')->find("template=admin");
+		foreach($adminPages as $ap) if($ap->process == 'ProcessSettingsFactory') $settingsPages->add($ap);
+
+		foreach($settingsPages as $sp) {
+			if($sp->sp_filepath) {
+				$key = $sp->name;
+				$settingsArray = [];
+				$path = wire('config')->paths->templates .  $sp->sp_filepath;
+				if(file_exists($path)) {
+					$pathParts = pathinfo($path);
+
+					if($pathParts['extension'] == 'json') {
+						$json = file_get_contents($path);
+						$fArray = json_decode($json, true);
+						if($fArray === null) {
+							$this->error('Your json file must return valid JSON array of inputfields.');
+							continue;
+						}
+					}
+
+					if($pathParts['extension'] == 'php') {
+						$fArray = wireRenderFile($path);
+						// check if $fArray is actually an array here...
+					}
+
+					foreach($fArray as $field) {
+						if(!$field['name']) continue;
+						$value = isset($field['value']) ? $field['value'] : '';
+						$settingsArray[$field['name']] = $value;
+					}
+					$this->set($key, $settingsArray);
+				} // end if file exists
+			} // end if there is a filepath specified
+		} // end foreach pages
+
+	}
+
+	public function ready() {
+		//bd($this->modules->getConfig('SettingsFactory'));
+	}
+
+	/**
+	 * Get the settings for frontend api.
+	 * default to WireArray for returned object
+	 */
+	public function getSettings($key, $wireData = true) {
+		$settings = $this->modules->getConfig('SettingsFactory'); // or $this?
+		if(empty($settings[$key])) return;
+		$array = $settings[$key];
+		if(!$wireData) return $array;
+
+		// convert to object
+		$key = new WireData();
+		$key->setArray($array);
+		return $key;
+	}
+
+	/**
+	 * Get the settings in plain array for frontend api.
+	 */
+	public function getSettingsArray($key) {
+		return $this->getSettings($key, false);
+	}
+
+
+    /**
+     * Called only when your module is installed
+     *
+     * This version creates a new page with this Process module assigned.
+     *
+     */
+    public function ___install() {
+        // Check for existence of the field below, throw a message if it already exists
+        if($this->fields->get('sp_filepath') == NULL) {
+            // If it doesn't exist then and create it
+            $field = new Field();
+            $field->type = $this->modules->get("FieldtypeText");
+            $field->name = 'sp_filepath';
+            $field->label = __('Inputfields Definition File Path.');
+            $field->description = __('Path to the file that defines the inputfields - json or php. Relative to templates folder.');
+            $field->notes = __('See the examples included in the modules to get started.');
+            $field->placeholder = __('settings/site-settings.php');
+            $field->showIf = 'process=ProcessSettingsFactory';
+            $field->save();
+        }
+
+        // add to admin template, set visibility to only for the process
+        $adminTemplate = $this->templates->get('admin');
+        $adminTemplate->fields->add($field);
+        $adminTemplate->fields->save();
+        $this->message(__("Added field 'sp_filepath' to admin template."));
+    }
+
+    /**
+     * Called only when your module is uninstalled
+     * This should return the site to the same state it was in before the module was installed.
+     *
+     */
+    public function ___uninstall() {
+
+        // 1) Remove the path field from the template
+        $adminTemplate = $this->templates->get('admin');
+        if($adminTemplate->fields->get('sp_filepath')) {
+            $adminTemplate->fields->remove($adminTemplate->fields->get('sp_filepath'));
+            $adminTemplate->fields->save();
+        }
+
+        // 2) Remove the field sp_filepath
+        if($this->fields->get('sp_filepath')) {
+            $field = $this->fields->get('sp_filepath');
+            $this->fields->delete($field);
+        }
+
+    }
+
+
+	public static function getModuleConfigInputfields(array $data) {
+
+		foreach(self::$configDefaults as $key => $value) {
+			if(!isset($data[$key])||$data[$key]=="") $data[$key] = $value;
+		}
+
+        $inputfields = new InputfieldWrapper();
+
+		/* INSTRUCTIONS
+		------------------------------------------------------------------------ */
+	    $f = wire('modules')->get('InputfieldMarkup');
+        $f->name  = 'instructions';
+        $f->label = __('Instructions', __FILE__);
+        $f->markupText = __('Create your processes then enter a path to the json or php definition of the fields in the path field.', __FILE__);
+        $inputfields->add($f); 
+
+        return $inputfields;
+
+    }
+
+
+
+}

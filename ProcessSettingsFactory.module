@@ -1,0 +1,181 @@
+<?php 
+
+/**
+ *
+ */
+
+class ProcessSettingsFactory extends Process {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' 	=> __('Process Settings Factory', __FILE__),
+			'summary' 	=> __('Unlimited settings pages.', __FILE__),
+			'version' 	=> 100,
+			'permanent' => false, 
+			'autoload' 	=> false,
+			'icon' 		=> 'check-square-o',
+			'requires'	=> 'SettingsFactory',
+			'permission' => 'settings-factory',
+			"permissionMethod" => "hasSettingsPagePermission", 
+			"permissions" => ["settings-factory" => "Access settings factory pages"],
+			);
+	}
+
+
+	protected $module = null;
+
+	protected $settingsKey = null;
+
+	public function init() {
+		$this->module = $this->modules->get('SettingsFactory');
+		$this->data = $this->modules->getConfig('SettingsFactory');
+		parent::init();
+	}
+
+	public function ready() {
+		$this->settingsKey = $this->wire('page')->name;
+	}
+
+	public function ___execute() {
+
+		$form = $this->buildForm();
+
+		if($this->input->post('submit_save')) {
+			$this->processForm($form);
+			$this->session->redirect("./");
+			return '';
+		} else {
+			$moduleInfo = $this->wire('modules')->getModuleInfoVerbose($this->module);
+			$filepath = wire('page')->sp_filepath ? 'Using ' . wire('page')->sp_filepath : 'No Path Specified.';
+			return $form->render() . "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
+		}
+
+	}
+
+	/**
+	 * getModuleInfo interface for required permission
+	 * 
+	 * @param array $data
+	 * @return bool
+	 *
+	 */
+	public static function hasSettingsPagePermission(array $data) {
+
+		$page = $data['page'];
+		$user = $data['user'];
+		$wire = $data['wire'];
+
+		// if there is a specific permission setup for this settings page
+		$permission = $wire->permissions->get("$page->name"); 
+		if(!$permission->id) $permission = 'settings-factory';
+		return $user->hasPermission($permission); 
+
+	}
+
+
+	/**
+	 * Render form for admin page
+	 * @return string form markup
+	 */
+	protected function buildForm() {
+
+		$form = new InputfieldForm();
+		$form->attr('id', 'ProcessSettingsFactory');
+		$form->attr('method', 'post');
+		$form->attr('action', './');
+
+		$module = $this->module;
+
+		// ------------------------------------------------------------------------
+        // Notice
+        // ------------------------------------------------------------------------
+   		$fDefault = wire('modules')->get('InputfieldMarkup');
+        $fDefault->name  = 'instructions';
+        $fDefault->label = __('Instructions', __FILE__);
+        $fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
+
+	    if(!wire('page')->sp_filepath) {
+	        $form->add($fDefault); 
+	    }
+
+		// ------------------------------------------------------------------------
+        // USER DEFINED FIELDS
+        // ------------------------------------------------------------------------
+		if(wire('page')->sp_filepath) {
+			$path = wire('config')->paths->templates .  wire('page')->sp_filepath;
+			$settingsKey = $this->wire('page')->name;
+			$modData = $this->modules->getConfig('SettingsFactory');
+			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
+			if(file_exists($path)) {
+
+				$pathParts = pathinfo($path);
+
+				if($pathParts['extension'] == 'json') {
+					$json = file_get_contents($path);
+					$fArray = json_decode($json, true);
+				}
+
+				if($pathParts['extension'] == 'php') {
+					$fArray = wireRenderFile($path);
+				}
+
+				// update values
+				foreach($fArray as $key => $cField) {
+					$name = $cField['name'];
+					$cField['value'] = $thisData ? $thisData[$name] : ''; // or get default value in json file?
+
+					if($cField['type'] == 'InputfieldCheckbox' && $cField['value'] == 1) {
+						$cField['checked'] = 'checked';
+					}
+
+					$fArray[$key] = $cField;
+				}
+				$form->add($fArray);
+			} else {
+				$fDefault->markupText = __("The specified file was not found. ($path)", __FILE__);
+				$form->add($fDefault); 
+			}
+		}
+
+		$f = $this->modules->get('InputfieldSubmit'); 
+		$f->attr('name', 'submit_save'); 
+		$f->attr('value', $this->_('Save')); 
+		$f->addClass('head_button_clone');
+		$f->icon = 'save';
+		$form->add($f);
+
+
+		return $form;
+
+	}
+
+
+	/**
+	 * Process configuration fields and populate to module
+	 * @param InputfieldWrapper $form
+	 *
+	 */
+	protected function processForm($form) {
+
+		$settingsKey = $this->wire('page')->name;
+		$form->processInput($this->input->post);
+		$thisData = $this->module->get($settingsKey);
+
+		$valuesArray = [];
+		foreach($thisData as $key => $value) {
+			$f = $form->get($key);
+			if(!$f) continue;
+			$valuesArray[$key] = $f->attr('value');
+		}
+
+		$myData[$settingsKey] = $valuesArray;
+		$newData = array_merge($this->data,$myData);
+
+		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
+		$this->message($this->_('Saved ' . $this->wire('page')->title));
+
+	}
+
+
+
+}

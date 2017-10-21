@@ -1,0 +1,173 @@
+[
+
+   {
+      "name":"text1",
+      "label":"Text Field 1",
+      "type":"InputfieldText",
+      "width":"100",
+      "description":"",
+      "collapsed":0,
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"text2",
+      "label":"Text Field 2",
+      "type":"InputfieldText",
+      "width":"100",
+      "description":"",
+      "collapsed":2,
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"select1",
+      "label":"Select Test",
+      "type":"InputfieldSelect",
+      "width":"100",
+      "description":"Description of select 1",
+      "options": {
+         "default":"Default",
+         "blue":"Blue",
+         "red":"Red",
+         "yellow":"Yellow",
+         "dark":"Dark"
+      },
+      "collapsed":0,
+      "placeholder":"",
+      "value":"",
+      "columnWidth":33
+   },
+   {
+      "name":"checkbox1",
+      "label":"Checkbox Test",
+      "type":"InputfieldCheckbox",
+      "width":"50",
+      "description":"Checkbox 1 description",
+      "collapsed":0,
+      "placeholder":"",
+      "value":1,
+      "columnWidth":34
+   },
+   {
+      "name":"radios1",
+      "label":"Radios Test",
+      "type":"InputfieldRadios",
+      "width":"50",
+      "description":"",
+      "options":{
+         "black":"Black",
+         "white":"White"
+      },
+      "collapsed":0,
+      "placeholder":"",
+      "value":"black",
+      "columnWidth":33
+   },
+   {
+      "name":"checkboxes1",
+      "label":"Checkboxes Test 1",
+      "type":"InputfieldCheckboxes",
+      "width":"50",
+      "description":"Checkboxes 1 Description",
+      "options":{
+         "address":"Address",
+         "phone":"Phone",
+         "social":"Social Icons",
+         "top_menu":"Top Menu"
+      },
+      "collapsed":0,
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"checboxes2",
+      "label":"Checkboxes Test 1",
+      "type":"InputfieldCheckboxes",
+      "width":"50",
+      "description":"Checkboxes 2 Description",
+      "options":{
+         "address":"Address",
+         "phone":"Phone",
+         "social":"Social Icons",
+         "top_menu":"Top Menu"
+      },
+      "collapsed":0,
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"textarea1",
+      "label":"Textarea Test",
+      "type":"InputfieldTextarea",
+      "width":"100",
+      "description":"Textarea 1 Description",
+      "collapsed":2,
+      "value":""
+   },
+   {
+      "name":"pagelistselect1",
+      "label":"Page List Select Test",
+      "type":"InputfieldPageListSelect",
+      "width":"100",
+      "description":"Page List Select Test Description",
+      "collapsed":0,
+      "value":"0"
+   },
+   {
+      "name":"asm_select1",
+      "label":"ASM Select Test",
+      "type":"InputfieldAsmSelect",
+      "width":"100",
+      "description":"ASM Select (templates) - select a template.",
+      "options":{
+         "43":"Image",
+         "59":"Options",
+         "61":"Post (post)",
+         "62":"Post Index (post-index)"
+      },
+      "collapsed":0,
+      "value":"0"
+   },
+   {
+      "name":"url_test",
+      "label":"URL Test",
+      "type":"InputfieldURL",
+      "width":"100",
+      "description":"Enter a URL",
+      "noRelative":1,
+      "collapsed":0,
+      "value":"0"
+   },
+   {
+      "name":"integer_test",
+      "label":"Integer Test",
+      "type":"InputfieldInteger",
+      "width":"100",
+      "description":"Enter an Integer",
+      "collapsed":0,
+      "value":"0"
+   },
+   {
+      "name":"email_test",
+      "label":"Email Test",
+      "type":"InputfieldEmail",
+      "width":"100",
+      "description":"Enter an Email Address",
+      "collapsed":0,
+      "value":"0"
+   },
+   {
+      "name":"ckeditor_test",
+      "label":"CK Editor Test",
+      "type":"InputfieldCKEditor",
+      "width":"100",
+      "description":"Some Formatted Test",
+      "collapsed":0,
+      "value":"0"
+   }
+]

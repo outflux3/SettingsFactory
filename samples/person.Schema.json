@@ -1,0 +1,117 @@
+[
+	{
+	  "name": "name",
+	  "type": "InputfieldText",
+	  "label": "Name",
+	  "placeholder": "Wolfgang Amadeus Mozart",
+	  "description": "The full name",
+	  "value": ""
+	},
+	{
+	  "name": "familyName",
+	  "type": "InputfieldText",
+	  "label": "First Name",
+	  "placeholder": "",
+	  "value": "",
+	  "columnWidth": 33
+	},
+	{
+	  "name": "additionalName",
+	  "type": "InputfieldText",
+	  "label": "Addditional Name",
+	  "placeholder": "",
+	  "description": "An additional name for a Person, can be used for a middle name.",
+	  "value": "",
+	  "columnWidth": 33
+	},
+	{
+	  "name": "givenName",
+	  "type": "InputfieldText",
+	  "label": "Last Name",
+	  "placeholder": "",
+	  "value": "",
+	  "columnWidth": 34
+	},
+   {
+      "name":"gender",
+      "label":"Gender",
+      "type":"InputfieldRadios",
+      "width":"50",
+      "description":"Gender of the person. While http://schema.org/Male and http://schema.org/Female may be used, text strings are also acceptable for people who do not identify as a binary gender.",
+      "options":{
+         "male":"Male",
+         "female":"Female"
+      },
+      "collapsed":0,
+      "placeholder":"",
+      "columnWidth": 50
+   },
+	{
+	  "name": "nationality",
+	  "type": "InputfieldText",
+	  "label": "Nationality",
+	  "placeholder": "US",
+	  "value": "",
+	  "columnWidth": 50
+	},
+	{
+	  "name": "description",
+	  "type": "InputfieldTextarea",
+	  "label": "Description",
+	  "description":"A short bio, 3-4 sentences.",
+	  "value": ""
+	},
+	{
+	  "name": "affiliation",
+	  "type": "InputfieldText",
+	  "label": "affiliation",
+	  "placeholder": "",
+	  "description": "An organization that this person is affiliated with. For example, a school/university, a club, or a team.",
+	  "value": ""
+	},
+	{
+	  "name": "birthDate",
+	  "type": "InputfieldText",
+	  "label": "Birth Date",
+	  "placeholder": "",
+	  "description": "Date of birth.",
+	  "value": "",
+	  "columnWidth": 50
+	},
+
+	{
+	  "name": "birthPlace",
+	  "type": "InputfieldText",
+	  "label": "Birth Place",
+	  "placeholder": "",
+	  "description": "The place where the person was born.",
+	  "value": "",
+	  "columnWidth": 50
+	},
+	{
+	  "name": "honorificPrefix",
+	  "type": "InputfieldText",
+	  "label": "Honorific Prefix",
+	  "placeholder": "",
+	  "description": "An honorific prefix preceding a Person's name such as Dr/Mrs/Mr.",
+	  "value": "",
+	  "columnWidth": 50
+	},
+	{
+	  "name": "honorificSuffix",
+	  "type": "InputfieldText",
+	  "label": "Honorific Suffix",
+	  "placeholder": "",
+	  "description": "An honorific suffix following a Person's name such as M.D. /PhD/MSCSW.",
+	  "value": "",
+	  "columnWidth": 50
+	},
+	{
+	  "name": "sameAs",
+	  "type": "InputfieldURL",
+	  "label": "Same As",
+	  "placeholder": "",
+	  "description": "URL of a reference Web page that unambiguously indicates the item's identity. E.g. the URL of the item's Wikipedia page, Wikidata entry, or official website.",
+	  "value": ""
+	}
+]
