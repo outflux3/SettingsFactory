@@ -46,7 +46,7 @@ class ProcessSettingsFactory extends Process {
 			return '';
 		} else {
 			$moduleInfo = $this->wire('modules')->getModuleInfoVerbose($this->module);
-			$filepath = wire('page')->sp_filepath ? 'Using ' . wire('page')->sp_filepath : 'No Path Specified.';
+			$filepath = $this->wire('page')->sp_filepath ? 'Using ' . $this->wire('page')->sp_filepath : 'No Path Specified.';
 			return $form->render() . "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
 		}
 
@@ -84,26 +84,27 @@ class ProcessSettingsFactory extends Process {
 		$form->attr('method', 'post');
 		$form->attr('action', './');
 
+		$wire = $this->wire;
 		$module = $this->module;
 
 		// ------------------------------------------------------------------------
         // Notice
         // ------------------------------------------------------------------------
-   		$fDefault = wire('modules')->get('InputfieldMarkup');
+   		$fDefault = $wire->modules->get('InputfieldMarkup');
         $fDefault->name  = 'instructions';
         $fDefault->label = __('Instructions', __FILE__);
         $fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
 
-	    if(!wire('page')->sp_filepath) {
+	    if(!$wire->page->sp_filepath) {
 	        $form->add($fDefault); 
 	    }
 
 		// ------------------------------------------------------------------------
         // USER DEFINED FIELDS
         // ------------------------------------------------------------------------
-		if(wire('page')->sp_filepath) {
-			$path = wire('config')->paths->templates .  wire('page')->sp_filepath;
-			$settingsKey = $this->wire('page')->name;
+		if($wire->page->sp_filepath) {
+			$path = $wire->config->paths->templates .  $wire->page->sp_filepath;
+			$settingsKey = $wire->page->name;
 			$modData = $this->modules->getConfig('SettingsFactory');
 			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
 			if(file_exists($path)) {
@@ -172,7 +173,8 @@ class ProcessSettingsFactory extends Process {
 		$newData = array_merge($this->data,$myData);
 
 		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
-		$this->message($this->_('Saved ' . $this->wire('page')->title));
+		//$this->message($this->_('Saved ' . $this->wire('page')->title));
+		$this->message(sprintf($this->_('Saved: %s'), $this->wire('page')->title));
 
 	}
 
