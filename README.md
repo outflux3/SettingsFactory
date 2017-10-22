@@ -4,9 +4,7 @@ Settings Factory for ProcessWire CMS
 
 Create unlimited settings pages!
 
-- Currently requires 3.x branch, namespaced (working on non-namespaced support)
 - Alpha status - waiting for more tests.
-
 
 
 ##Support
