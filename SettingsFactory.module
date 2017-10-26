@@ -52,6 +52,15 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 
 	public function init() {
+		$this->buildFactory();
+	}
+
+	public function ready() {
+
+	}
+
+
+	public function buildFactory() {
 
 		/**
 		 * Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
@@ -85,6 +94,9 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 						}
 					}
 
+					// support for WireTabs (or nested wrappers are returned by file)
+					$fArray = $this->extractInputfields($fArray);
+
 					foreach($fArray as $field) {
 						if(!$field['name']) continue;
 						$value = isset($field['value']) ? $field['value'] : '';
@@ -95,11 +107,32 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 			} // end if there is a filepath specified
 		} // end foreach pages
 
+
 	}
 
-	public function ready() {
-		//bd($this->modules->getConfig('SettingsFactory'));
+
+	/**
+	 * Extract the inputfields from nested tabs/fieldsets
+	 */
+	public function extractInputfields($inputfields) {
+		$inputfieldsArray = array();
+		foreach($inputfields as $field) {
+			if($field instanceof InputfieldWrapper) {
+				foreach($field as $item) {
+					if($item instanceof InputfieldWrapper) {
+						$inputfieldsArray = $this->extractInputfields($item);
+					} else {
+						$inputfieldsArray[] = $item->attributes;
+					}
+				}
+			} else {
+				$inputfieldsArray[] = $field;
+			}
+		}
+		return $inputfieldsArray;
 	}
+
+
 
 	/**
 	 * Get the settings for frontend api.

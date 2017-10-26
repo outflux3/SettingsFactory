@@ -50,6 +50,7 @@ class ProcessSettingsFactory extends Process {
 			return $form->render() . "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
 		}
 
+
 	}
 
 	/**
@@ -120,22 +121,23 @@ class ProcessSettingsFactory extends Process {
 					$fArray = wireRenderFile($path);
 				}
 
-				// update values
-				foreach($fArray as $key => $cField) {
+				$form->add($fArray);
+				$inputfields = $this->extractInputfields($fArray);
+
+				foreach($inputfields as $key => $cField) {
 					$name = $cField['name'];
 					if($thisData && isset($thisData[$name])) {
 						$cField['value'] = $thisData[$name] ?: '';
 					} else {
 						$cField['value'] = '';
 					}
-
+					$f = $form->get($name);
+					$f->attr('value', $cField['value']);
 					if($cField['type'] == 'InputfieldCheckbox' && $cField['value'] == 1) {
-						$cField['checked'] = 'checked';
+						$f->attr('checked', 'checked');
 					}
-
-					$fArray[$key] = $cField;
 				}
-				$form->add($fArray);
+
 			} else {
 				$fDefault->markupText = __("The specified file was not found. ($path)", __FILE__);
 				$form->add($fDefault); 
@@ -155,6 +157,33 @@ class ProcessSettingsFactory extends Process {
 
 
 	/**
+	 * Extract the inputfields from nested tabs/fieldsets
+	 */
+	public function extractInputfields($inputfields) {
+		$inputfieldsArray = array();
+		foreach($inputfields as $field) {
+			if($field instanceof InputfieldWrapper) {
+				if(in_array('WireTab', $field->attributes)) {
+					$this->wire('modules')->get('JqueryWireTabs');
+					$this->wire('config')->scripts->append(wire('config')->urls->SettingsFactory.'wiretabs-init.js');
+				}
+				foreach($field as $item) {
+					if($item instanceof InputfieldWrapper) {
+						$inputfieldsArray = $this->extractInputfields($item);
+					} else {
+						$inputfieldsArray[] = $item->attributes;
+					}
+				}
+			} else {
+				$inputfieldsArray[] = $field;
+			}
+		}
+		return $inputfieldsArray;
+	}
+
+
+
+	/**
 	 * Process configuration fields and populate to module
 	 * @param InputfieldWrapper $form
 	 *
@@ -164,7 +193,6 @@ class ProcessSettingsFactory extends Process {
 		$settingsKey = $this->wire('page')->name;
 		$form->processInput($this->input->post);
 		$thisData = $this->module->get($settingsKey);
-
 		$valuesArray = array();
 		foreach($thisData as $key => $value) {
 			$f = $form->get($key);
