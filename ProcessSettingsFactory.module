@@ -88,20 +88,20 @@ class ProcessSettingsFactory extends Process {
 		$module = $this->module;
 
 		// ------------------------------------------------------------------------
-        // Notice
-        // ------------------------------------------------------------------------
-   		$fDefault = $wire->modules->get('InputfieldMarkup');
-        $fDefault->name  = 'instructions';
-        $fDefault->label = __('Instructions', __FILE__);
-        $fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
+		// Notice
+		// ------------------------------------------------------------------------
+		$fDefault = $wire->modules->get('InputfieldMarkup');
+		$fDefault->name  = 'instructions';
+		$fDefault->label = __('Instructions', __FILE__);
+		$fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
 
-	    if(!$wire->page->sp_filepath) {
-	        $form->add($fDefault); 
-	    }
+		if(!$wire->page->sp_filepath) {
+			$form->add($fDefault); 
+		}
 
 		// ------------------------------------------------------------------------
-        // USER DEFINED FIELDS
-        // ------------------------------------------------------------------------
+		// USER DEFINED FIELDS
+		// ------------------------------------------------------------------------
 		if($wire->page->sp_filepath) {
 			$path = $wire->config->paths->templates .  $wire->page->sp_filepath;
 			$settingsKey = $wire->page->name;
@@ -123,7 +123,11 @@ class ProcessSettingsFactory extends Process {
 				// update values
 				foreach($fArray as $key => $cField) {
 					$name = $cField['name'];
-					$cField['value'] = $thisData ? $thisData[$name] : ''; // or get default value in json file?
+					if($thisData && isset($thisData[$name])) {
+						$cField['value'] = $thisData[$name] ?: '';
+					} else {
+						$cField['value'] = '';
+					}
 
 					if($cField['type'] == 'InputfieldCheckbox' && $cField['value'] == 1) {
 						$cField['checked'] = 'checked';
@@ -145,7 +149,6 @@ class ProcessSettingsFactory extends Process {
 		$f->icon = 'save';
 		$form->add($f);
 
-
 		return $form;
 
 	}
@@ -162,7 +165,7 @@ class ProcessSettingsFactory extends Process {
 		$form->processInput($this->input->post);
 		$thisData = $this->module->get($settingsKey);
 
-		$valuesArray = [];
+		$valuesArray = array();
 		foreach($thisData as $key => $value) {
 			$f = $form->get($key);
 			if(!$f) continue;
@@ -173,7 +176,6 @@ class ProcessSettingsFactory extends Process {
 		$newData = array_merge($this->data,$myData);
 
 		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
-		//$this->message($this->_('Saved ' . $this->wire('page')->title));
 		$this->message(sprintf($this->_('Saved: %s'), $this->wire('page')->title));
 
 	}
