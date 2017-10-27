@@ -1,13 +1,17 @@
 Settings Factory for ProcessWire CMS
 =======================
 
-
 Create unlimited settings pages!
 
-- Alpha status - waiting for more tests.
+- Alpha status - waiting for more tests
+
+- Now supports WireTabs - see the example!
+
+- Testers and code quality checks needed!
 
 
-##Support
+
+## Support
 coming soon
 
 
