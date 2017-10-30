@@ -1,0 +1,149 @@
+[
+
+   {
+      "name":"logo_left",
+      "label":"Logo Left",
+      "type":"InputfieldText",
+      "width":"100",
+      "description":"",
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"logo_sub",
+      "label":"Logo Subtitle",
+      "type":"InputfieldText",
+      "width":"100",
+      "description":"",
+      "collapsed":"collapsedBlank",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":50
+   },
+   {
+      "name":"theme_color",
+      "label":"Theme Color",
+      "type":"InputfieldSelect",
+      "width":"100",
+      "description":"This is the main theme color - leave unset to use the default aqua color.",
+      "options": {
+         "default":"Default",
+         "blue":"Blue",
+         "red":"Red",
+         "yellow":"Yellow",
+         "dark":"Dark"
+      },
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":33
+   },
+   {
+      "name":"preheader_show",
+      "label":"Show Top Strip",
+      "type":"InputfieldCheckbox",
+      "width":"50",
+      "description":"Checking this will enable the pre header.",
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":1,
+      "columnWidth":34
+   },
+   {
+      "name":"top_strip_color",
+      "label":"Top Strip Color",
+      "type":"InputfieldRadios",
+      "width":"50",
+      "description":"",
+      "options":{
+         "black":"Black",
+         "white":"White"
+      },
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"black",
+      "columnWidth":33
+   },
+   {
+      "name":"top_strip_left",
+      "label":"Top Strip Left",
+      "type":"InputfieldCheckboxes",
+      "width":"50",
+      "description":"Items to show in top strip (left)",
+      "options":{
+         "address":"Address",
+         "phone":"Phone",
+         "social":"Social Icons",
+         "top_menu":"Top Menu"
+      },
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":33
+   },
+   {
+      "name":"top_strip_right",
+      "label":"Top Strip Right",
+      "type":"InputfieldCheckboxes",
+      "width":"50",
+      "description":"Items to show in top strip (right)",
+      "options":{
+         "address":"Address",
+         "phone":"Phone",
+         "social":"Social Icons",
+         "top_menu":"Top Menu"
+      },
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":34
+   },
+   {
+      "name":"header_socials",
+      "label":"Top Socials",
+      "type":"InputfieldCheckboxes",
+      "width":"100",
+      "description":"Socials to show in top strip (if enabled)",
+      "options":{
+         "facebook":"Facebook",
+         "twitter":"Twitter",
+         "instagram":"Instagram",
+         "yelp":"Yelp",
+         "google":"Google",
+         "pinterest":"Pinterest",
+         "soundcloud":"Soundcloud",
+         "youtube":"Youtube"
+      },
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"",
+      "columnWidth":33,
+      "optionColumns": 2
+   },
+   {
+      "name":"footer_text",
+      "label":"Footer Text",
+      "type":"InputfieldTextarea",
+      "width":"100",
+      "description":"This is the text below the logo.",
+      "collapsed":"collapsedBlank",
+      "placeholder":"",
+      "value":"",
+      "rows":2,
+      "columnWidth":50
+   },
+   {
+      "name":"logo_mobile",
+      "label":"Mobile Logo",
+      "type":"InputfieldPageListSelect",
+      "width":"100",
+      "description":"Select the media page holding the Mobile Logo",
+      "collapsed":"Default",
+      "placeholder":"",
+      "value":"0",
+      "columnWidth":50
+   }
+
+]

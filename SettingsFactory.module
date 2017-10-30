@@ -56,7 +56,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	}
 
 	public function ready() {
-
+		//$this->buildFactory();
 	}
 
 
@@ -116,6 +116,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	 */
 	public function extractInputfields($inputfields) {
 		$inputfieldsArray = array();
+		//bd($inputfieldsArray);
 		foreach($inputfields as $field) {
 			if($field instanceof InputfieldWrapper) {
 				foreach($field as $item) {
