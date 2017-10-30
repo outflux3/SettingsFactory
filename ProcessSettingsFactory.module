@@ -123,7 +123,6 @@ class ProcessSettingsFactory extends Process {
 
 				$form->add($fArray);
 				$inputfields = $this->extractInputfields($fArray);
-
 				foreach($inputfields as $key => $cField) {
 					$name = $cField['name'];
 					if($thisData && isset($thisData[$name])) {
@@ -160,25 +159,19 @@ class ProcessSettingsFactory extends Process {
 	 * Extract the inputfields from nested tabs/fieldsets
 	 */
 	public function extractInputfields($inputfields) {
-		$inputfieldsArray = array();
+		$inputfieldsArray = new InputfieldWrapper();
 		foreach($inputfields as $field) {
+			if(is_array($field)) $inputfieldsArray->importArray($field);
+
 			if($field instanceof InputfieldWrapper) {
 				if(in_array('WireTab', $field->attributes)) {
 					$this->wire('modules')->get('JqueryWireTabs');
 					$this->wire('config')->scripts->append(wire('config')->urls->SettingsFactory.'wiretabs-init.js');
 				}
-				foreach($field as $item) {
-					if($item instanceof InputfieldWrapper) {
-						$inputfieldsArray = $this->extractInputfields($item);
-					} else {
-						$inputfieldsArray[] = $item->attributes;
-					}
-				}
-			} else {
-				$inputfieldsArray[] = $field;
+				$inputfieldsArray->import($field->getAll());
 			}
 		}
-		return $inputfieldsArray;
+		return $inputfieldsArray->getAll();
 	}
 
 
