@@ -1,8 +1,8 @@
-<?php 
+<?php
 
 /**
- *
- */
+*
+*/
 
 class ProcessSettingsFactory extends Process {
 
@@ -11,14 +11,14 @@ class ProcessSettingsFactory extends Process {
 			'title' 	=> __('Process Settings Factory', __FILE__),
 			'summary' 	=> __('Unlimited settings pages.', __FILE__),
 			'version' 	=> 100,
-			'permanent' => false, 
+			'permanent' => false,
 			'autoload' 	=> false,
 			'icon' 		=> 'check-square-o',
 			'requires'	=> 'SettingsFactory',
 			'permission' => 'settings-factory',
-			"permissionMethod" => "hasSettingsPagePermission", 
+			"permissionMethod" => "hasSettingsPagePermission",
 			"permissions" => ["settings-factory" => "Access settings factory pages"],
-			);
+		);
 	}
 
 
@@ -54,12 +54,12 @@ class ProcessSettingsFactory extends Process {
 	}
 
 	/**
-	 * getModuleInfo interface for required permission
-	 * 
-	 * @param array $data
-	 * @return bool
-	 *
-	 */
+	* getModuleInfo interface for required permission
+	*
+	* @param array $data
+	* @return bool
+	*
+	*/
 	public static function hasSettingsPagePermission(array $data) {
 
 		$page = $data['page'];
@@ -67,19 +67,19 @@ class ProcessSettingsFactory extends Process {
 		$wire = $data['wire'];
 
 		// if there is a specific permission setup for this settings page
-		$permission = $wire->permissions->get("$page->name"); 
+		$permission = $wire->permissions->get("$page->name");
 		if(!$permission->id) $permission = 'settings-factory';
-		return $user->hasPermission($permission); 
+		return $user->hasPermission($permission);
 
 	}
 
 
 	/**
-	 * Render form for admin page
-	 * @return string form markup
-	 */
+	* Render form for admin page
+	* @return string form markup
+	*/
 	protected function buildForm() {
-
+		$languages = $this->wire('languages')->findNonDefault();
 		$form = new InputfieldForm();
 		$form->attr('id', 'ProcessSettingsFactory');
 		$form->attr('method', 'post');
@@ -97,7 +97,7 @@ class ProcessSettingsFactory extends Process {
 		$fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
 
 		if(!$wire->page->sp_filepath) {
-			$form->add($fDefault); 
+			$form->add($fDefault);
 		}
 
 		// ------------------------------------------------------------------------
@@ -108,6 +108,7 @@ class ProcessSettingsFactory extends Process {
 			$settingsKey = $wire->page->name;
 			$modData = $this->modules->getConfig('SettingsFactory');
 			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
+			bd($thisData);
 			if(file_exists($path)) {
 
 				$pathParts = pathinfo($path);
@@ -132,6 +133,15 @@ class ProcessSettingsFactory extends Process {
 					}
 					$f = $form->get($name);
 					$f->attr('value', $cField['value']);
+
+					if($languages) {
+						if($f->useLanguages == true) {
+							foreach($languages as $language) {
+								$f->set("value" . $language->id, $thisData[$name . "__" . $language->id ]);
+							}
+						}
+					}
+
 					if($cField['type'] == 'InputfieldCheckbox' && $cField['value'] == 1) {
 						$f->attr('checked', 'checked');
 					}
@@ -139,13 +149,13 @@ class ProcessSettingsFactory extends Process {
 
 			} else {
 				$fDefault->markupText = __("The specified file was not found. ($path)", __FILE__);
-				$form->add($fDefault); 
+				$form->add($fDefault);
 			}
 		}
 
-		$f = $this->modules->get('InputfieldSubmit'); 
-		$f->attr('name', 'submit_save'); 
-		$f->attr('value', $this->_('Save')); 
+		$f = $this->modules->get('InputfieldSubmit');
+		$f->attr('name', 'submit_save');
+		$f->attr('value', $this->_('Save'));
 		$f->addClass('head_button_clone');
 		$f->icon = 'save';
 		$form->add($f);
@@ -156,8 +166,8 @@ class ProcessSettingsFactory extends Process {
 
 
 	/**
-	 * Extract the inputfields from nested tabs/fieldsets
-	 */
+	* Extract the inputfields from nested tabs/fieldsets
+	*/
 	public function extractInputfields($inputfields) {
 		$inputfieldsArray = new InputfieldWrapper();
 		foreach($inputfields as $field) {
@@ -177,12 +187,12 @@ class ProcessSettingsFactory extends Process {
 
 
 	/**
-	 * Process configuration fields and populate to module
-	 * @param InputfieldWrapper $form
-	 *
-	 */
+	* Process configuration fields and populate to module
+	* @param InputfieldWrapper $form
+	*
+	*/
 	protected function processForm($form) {
-
+		$languages = $this->wire('languages')->findNonDefault();
 		$settingsKey = $this->wire('page')->name;
 		$form->processInput($this->input->post);
 		$thisData = $this->module->get($settingsKey);
@@ -190,11 +200,16 @@ class ProcessSettingsFactory extends Process {
 		foreach($thisData as $key => $value) {
 			$f = $form->get($key);
 			if(!$f) continue;
+			if($languages) {
+				if($f->useLanguages)
+				foreach($languages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
+			}
+			// bd($f);
 			$valuesArray[$key] = $f->attr('value');
 		}
-
 		$myData[$settingsKey] = $valuesArray;
 		$newData = array_merge($this->data,$myData);
+		bd($newData);
 
 		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
 		$this->message(sprintf($this->_('Saved: %s'), $this->wire('page')->title));
