@@ -204,12 +204,10 @@ class ProcessSettingsFactory extends Process {
 				if($f->useLanguages)
 				foreach($languages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
 			}
-			// bd($f);
 			$valuesArray[$key] = $f->attr('value');
 		}
 		$myData[$settingsKey] = $valuesArray;
 		$newData = array_merge($this->data,$myData);
-		bd($newData);
 
 		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
 		$this->message(sprintf($this->_('Saved: %s'), $this->wire('page')->title));
