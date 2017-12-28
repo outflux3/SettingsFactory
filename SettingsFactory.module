@@ -22,9 +22,9 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
 			'version' => 102,
 			'author'    => 'Macrura',
-			'permanent' => false, 
+			'permanent' => false,
 			'autoload' => true,
-			'icon' => 'check-square-o', 
+			'icon' => 'check-square-o',
 			'installs' => 'ProcessSettingsFactory'
 			);
 	}
@@ -46,7 +46,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	public function __construct() {
 		$configDefaults = self::$configDefaults;
 		foreach($configDefaults as $key => $value) {
-			$this->set($key, $value); 
+			$this->set($key, $value);
 		}
 	}
 
@@ -129,14 +129,32 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	 * default to WireArray for returned object
 	 */
 	public function getSettings($key, $wireData = true) {
+		$languages = $this->wire('languages')->findNonDefault();
+		$user = $this->wire('user');
 		$settings = $this->modules->getConfig('SettingsFactory'); // or $this?
 		if(empty($settings[$key])) return;
-		$array = $settings[$key];
-		if(!$wireData) return $array;
+		$dataArray = $settings[$key];
+		$settingsFields = $this[$key];
 
+		$newDataArray = array();
+
+		foreach ($settingsFields as $key => $value) {
+			if ($languages) {
+				if ($user->language == $languages->getDefault()) {
+					$newDataArray[$key] = $dataArray[$key];
+				} else {
+					$newDataArray[$key] = ($dataArray[$key . "__" . $user->language->id]) ? $dataArray[$key . "__" . $user->language->id] : $dataArray[$key];
+
+				}
+			} else {
+				$newDataArray[$key] = $dataArray[$key];
+			}
+		}
+
+		if(!$wireData) return $newDataArray;
 		// convert to object
 		$key = new WireData();
-		$key->setArray($array);
+		$key->setArray($newDataArray);
 		return $key;
 	}
 
@@ -213,7 +231,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		$f->name  = 'instructions';
 		$f->label = __('Instructions', __FILE__);
 		$f->markupText = __('Create your processes then enter a path to the json or php definition of the fields in the path field.', __FILE__);
-		$inputfields->add($f); 
+		$inputfields->add($f);
 
 		return $inputfields;
 
