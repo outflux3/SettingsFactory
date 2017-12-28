@@ -79,7 +79,7 @@ class ProcessSettingsFactory extends Process {
 	* @return string form markup
 	*/
 	protected function buildForm() {
-		$languages = $this->wire('languages')->findNonDefault();
+		$languages = $this->wire('languages') ? $this->wire('languages')->findNonDefault() : '';
 		$form = new InputfieldForm();
 		$form->attr('id', 'ProcessSettingsFactory');
 		$form->attr('method', 'post');
@@ -192,7 +192,7 @@ class ProcessSettingsFactory extends Process {
 	*
 	*/
 	protected function processForm($form) {
-		$languages = $this->wire('languages')->findNonDefault();
+		$languages = $this->wire('languages') ? $this->wire('languages')->findNonDefault() : '';
 		$settingsKey = $this->wire('page')->name;
 		$form->processInput($this->input->post);
 		$thisData = $this->module->get($settingsKey);
