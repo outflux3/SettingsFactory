@@ -108,7 +108,6 @@ class ProcessSettingsFactory extends Process {
 			$settingsKey = $wire->page->name;
 			$modData = $this->modules->getConfig('SettingsFactory');
 			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
-			bd($thisData);
 			if(file_exists($path)) {
 
 				$pathParts = pathinfo($path);
