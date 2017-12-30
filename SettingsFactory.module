@@ -129,8 +129,10 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	* default to WireArray for returned object
 	*/
 	public function getSettings($key, $wireData = true) {
+
 		$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
 		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+
 		$user = $this->wire('user');
 		$settings = $this->modules->getConfig('SettingsFactory'); // or $this?
 		if(empty($settings[$key])) return;
