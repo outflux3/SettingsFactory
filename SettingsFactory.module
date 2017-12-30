@@ -1,19 +1,19 @@
 <?php
 
 /**
- * SettingsFactory
- * Create unlimited settings pages from JSON and PHP
- *
- * @author Macrura
- *
- * ProcessWire 3.x
- * Copyright (C) 2011 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
- *
- */
+* SettingsFactory
+* Create unlimited settings pages from JSON and PHP
+*
+* @author Macrura
+*
+* ProcessWire 3.x
+* Copyright (C) 2011 by Ryan Cramer
+* Licensed under GNU/GPL v2, see LICENSE.TXT
+*
+* http://www.processwire.com
+* http://www.ryancramer.com
+*
+*/
 class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 	public static function getModuleInfo() {
@@ -26,13 +26,13 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 			'autoload' => true,
 			'icon' => 'check-square-o',
 			'installs' => 'ProcessSettingsFactory'
-			);
+		);
 	}
 
 	/**
-	 * Data as used by the get/set functions
-	 *
-	 */
+	* Data as used by the get/set functions
+	*
+	*/
 	protected $data = array();
 
 	protected static $configDefaults = array(
@@ -40,9 +40,9 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	);
 
 	/**
-	 * Set our configuration defaults
-	 *
-	 */
+	* Set our configuration defaults
+	*
+	*/
 	public function __construct() {
 		$configDefaults = self::$configDefaults;
 		foreach($configDefaults as $key => $value) {
@@ -63,8 +63,8 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	public function buildFactory() {
 
 		/**
-		 * Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
-		 */
+		* Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
+		*/
 		$settingsPages = new PageArray();
 		$adminPages = $this->wire('pages')->find("template=admin");
 		foreach($adminPages as $ap) if($ap->process == 'ProcessSettingsFactory') $settingsPages->add($ap);
@@ -111,8 +111,8 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 
 	/**
-	 * Extract the inputfields from nested tabs/fieldsets
-	 */
+	* Extract the inputfields from nested tabs/fieldsets
+	*/
 	public function extractInputfields($inputfields) {
 		$inputfieldsArray = new InputfieldWrapper();
 		foreach($inputfields as $field) {
@@ -125,11 +125,14 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 
 	/**
-	 * Get the settings for frontend api.
-	 * default to WireArray for returned object
-	 */
+	* Get the settings for frontend api.
+	* default to WireArray for returned object
+	*/
 	public function getSettings($key, $wireData = true) {
-		$languages = $this->wire('languages') ? $this->wire('languages')->findNonDefault() : '';
+
+		$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
+		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+
 		$user = $this->wire('user');
 		$settings = $this->modules->getConfig('SettingsFactory'); // or $this?
 		if(empty($settings[$key])) return;
@@ -139,12 +142,11 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		$newDataArray = array();
 
 		foreach ($settingsFields as $key => $value) {
-			if ($languages) {
-				if ($user->language == $languages->getDefault()) {
-					$newDataArray[$key] = $dataArray[$key];
-				} else {
+			if ($nonDefaultLanguages && $user->language !== $languages->getDefault()) {
+				if (array_key_exists($key . "__" . $user->language->id, $dataArray)) {
 					$newDataArray[$key] = ($dataArray[$key . "__" . $user->language->id]) ? $dataArray[$key . "__" . $user->language->id] : $dataArray[$key];
-
+				} else {
+					$newDataArray[$key] = $dataArray[$key];
 				}
 			} else {
 				$newDataArray[$key] = $dataArray[$key];
@@ -159,19 +161,19 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	}
 
 	/**
-	 * Get the settings in plain array for frontend api.
-	 */
+	* Get the settings in plain array for frontend api.
+	*/
 	public function getSettingsArray($key) {
 		return $this->getSettings($key, false);
 	}
 
 
 	/**
-	 * Called only when your module is installed
-	 *
-	 * This version creates a new page with this Process module assigned.
-	 *
-	 */
+	* Called only when your module is installed
+	*
+	* This version creates a new page with this Process module assigned.
+	*
+	*/
 	public function ___install() {
 		// Check for existence of the field below, throw a message if it already exists
 		if($this->fields->get('sp_filepath') == NULL) {
@@ -195,10 +197,10 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 	}
 
 	/**
-	 * Called only when your module is uninstalled
-	 * This should return the site to the same state it was in before the module was installed.
-	 *
-	 */
+	* Called only when your module is uninstalled
+	* This should return the site to the same state it was in before the module was installed.
+	*
+	*/
 	public function ___uninstall() {
 
 		// 1) Remove the path field from the template

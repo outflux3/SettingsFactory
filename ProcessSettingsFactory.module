@@ -79,7 +79,10 @@ class ProcessSettingsFactory extends Process {
 	* @return string form markup
 	*/
 	protected function buildForm() {
-		$languages = $this->wire('languages') ? $this->wire('languages')->findNonDefault() : '';
+
+		$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
+		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+
 		$form = new InputfieldForm();
 		$form->attr('id', 'ProcessSettingsFactory');
 		$form->attr('method', 'post');
@@ -108,7 +111,6 @@ class ProcessSettingsFactory extends Process {
 			$settingsKey = $wire->page->name;
 			$modData = $this->modules->getConfig('SettingsFactory');
 			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
-			bd($thisData);
 			if(file_exists($path)) {
 
 				$pathParts = pathinfo($path);
@@ -134,9 +136,9 @@ class ProcessSettingsFactory extends Process {
 					$f = $form->get($name);
 					$f->attr('value', $cField['value']);
 
-					if($languages) {
-						if($f->useLanguages == true) {
-							foreach($languages as $language) {
+					if($nonDefaultLanguages) {
+						if($f->useLanguages) {
+							foreach($nonDefaultLanguages as $language) {
 								$f->set("value" . $language->id, $thisData[$name . "__" . $language->id ]);
 							}
 						}
@@ -192,7 +194,10 @@ class ProcessSettingsFactory extends Process {
 	*
 	*/
 	protected function processForm($form) {
-		$languages = $this->wire('languages') ? $this->wire('languages')->findNonDefault() : '';
+		
+    $languages = ($this->wire('languages')) ? $this->wire('languages') : '';
+		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+
 		$settingsKey = $this->wire('page')->name;
 		$form->processInput($this->input->post);
 		$thisData = $this->module->get($settingsKey);
@@ -200,9 +205,9 @@ class ProcessSettingsFactory extends Process {
 		foreach($thisData as $key => $value) {
 			$f = $form->get($key);
 			if(!$f) continue;
-			if($languages) {
+			if($nonDefaultLanguages) {
 				if($f->useLanguages)
-				foreach($languages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
+				foreach($nonDefaultLanguages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
 			}
 			$valuesArray[$key] = $f->attr('value');
 		}
