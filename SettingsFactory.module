@@ -20,7 +20,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => 102,
+			'version' => 103,
 			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' => true,
@@ -184,7 +184,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 			$field->label = __('Inputfields Definition File Path.');
 			$field->description = __('Path to the file that defines the inputfields - json or php. Relative to templates folder.');
 			$field->notes = __('See the examples included in the modules to get started.');
-			$field->placeholder = __('settings/site-settings.php');
+			//$field->placeholder = __('settings/site-settings.php');
 			$field->showIf = 'process=ProcessSettingsFactory';
 			$field->save();
 		}
@@ -232,7 +232,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		$f = wire('modules')->get('InputfieldMarkup');
 		$f->name  = 'instructions';
 		$f->label = __('Instructions', __FILE__);
-		$f->markupText = __('Create your processes then enter a path to the json or php definition of the fields in the path field.', __FILE__);
+		$f->markupText = __('Create your processes then enter a path to the json or php definition file of the fields in the path field.', __FILE__);
 		$inputfields->add($f);
 
 		return $inputfields;

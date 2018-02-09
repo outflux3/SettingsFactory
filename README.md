@@ -10,6 +10,13 @@ Create unlimited settings pages!
 - Testers and code quality checks needed!
 
 
+## Instructions
+
+1. Create a page under Admin (at the top level or under Setup if you prefer)
+
+2. Save the page and then choose the ProcessSettingsFactory process from the dropdown.
+
+3. Enter the path to your settings file.
 
 ## Support
 coming soon
