@@ -18,6 +18,22 @@ Create unlimited settings pages!
 
 3. Enter the path to your settings file.
 
+## How to use
+1. Copy [kitchen-sink.json](https://github.com/outflux3/SettingsFactory/blob/master/samples/kitchen-sink.json) from one of the provided examples to your template folder (or anywhere within your template folder)
+
+2. Add the following to your functions.php or whatever it is you use to set up your PW site
+```
+$settings = $modules->get("SettingsFactory");
+$siteSettings = $settings->getSettings('kitchen-sink');
+```
+
+3. Use it in your template as follows, where `text1` refers to a key in your settings
+```
+<php echo $siteSettings['text1']; ?>
+```
+
+4. Feel free to edit your JSON file to your liking/usage
+
 ## Support
 coming soon
 
