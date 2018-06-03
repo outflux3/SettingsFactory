@@ -1,41 +1,54 @@
 Settings Factory for ProcessWire CMS
 =======================
 
-Create unlimited settings pages!
+### Create unlimited settings pages!
 
-- Alpha status - waiting for more tests
+Ever wanted to build some functionality for a site, but need some user editable settings, and don't want to add new fields, and don't want to build a module?  Maybe you are building a service that pulls data from an external site and need to have a place to store some items like URL, or preferences settings.
 
-- Now supports WireTabs - see the example!
+Need a place to enter some data to be used for site schema (schema.org)?
 
-- Testers and code quality checks needed!
+Need an easy way to provide access to those settings panels right from the PW admin menu?
 
+Need to be able to reuse the same settings panels on various sites without having to create fields?
+
+Settings Factory is your answer.
 
 ## Instructions
 
-1. Create a page under Admin (at the top level or under Setup if you prefer)
+1. Create a page under Admin (at the top level or under Setup if you prefer), e.g. "Weather Widget".
 
-2. Save the page and then choose the ProcessSettingsFactory process from the dropdown.
+2. Save the page and then choose **ProcessSettingsFactory** process from the dropdown.
 
-3. Enter the path to your settings file.
+3. Enter the path to your settings file – the path is relative to the templates folder, e.g. /settings/weather-widget.json
 
-## How to use
-1. Copy [kitchen-sink.json](https://github.com/outflux3/SettingsFactory/blob/master/samples/kitchen-sink.json) from one of the provided examples to your template folder (or anywhere within your template folder)
+## How to use on front end
 
-2. Add the following to your functions.php or whatever it is you use to set up your PW site
+1. Make sure your settings panel works without errors in the admin, and populate the various fields, and save. The data is saved in the Settings Factory module config.
+
+2. Init the module on the front end by setting up a varible to access your settings.
+
 ```
-$settings = $modules->get("SettingsFactory");
-$siteSettings = $settings->getSettings('kitchen-sink');
+$factory = $modules->get("SettingsFactory");
+$siteSettings = $factory->getSettings('name-of-my-settings');
+```
+** note that the name of your settings matches the name of the process page, so if you named your process page "weather-widget", then your settings would be called like this:
+
+```
+$factory = $modules->get("SettingsFactory");
+$wSettings = $factory->getSettings('weather-widget');
 ```
 
 3. Use it in your template as follows, where `text1` refers to a key in your settings
 ```
-<php echo $siteSettings['text1']; ?>
+<php echo $wSettings->text1; ?>
 ```
 
-4. Feel free to edit your JSON file to your liking/usage
+the settings are delivered as a WireArray, or can be delivered as a plain array getSettingsArray('name-of-process); 
+
 
 ## Support
-coming soon
+
+https://processwire.com/talk/topic/17536-settings-factory/
 
 
 ## License
