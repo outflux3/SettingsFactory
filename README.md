@@ -19,7 +19,7 @@ Settings Factory is your answer.
 
 2. Save the page and then choose **ProcessSettingsFactory** process from the dropdown.
 
-3. Enter the path to your settings file – the path is relative to the templates folder, e.g. /settings/weather-widget.json
+3. Enter the path to your settings file – the path is relative to the templates folder, e.g. "settings/weather-widget.json" (no preceding slash)
 
 ## How to use on front end
 
