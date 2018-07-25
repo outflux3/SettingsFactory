@@ -20,7 +20,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => 103,
+			'version' => 104,
 			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' => true,
@@ -64,10 +64,10 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 		/**
 		* Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
+		* thanks @Zeka for fixing this pages find
 		*/
-		$settingsPages = new PageArray();
-		$adminPages = $this->wire('pages')->find("template=admin");
-		foreach($adminPages as $ap) if($ap->process == 'ProcessSettingsFactory') $settingsPages->add($ap);
+		$module_id = wire('modules')->getModuleInfo('ProcessSettingsFactory')['id'];
+		$settingsPages = $this->wire('pages')->find("template=admin, process=$module_id");
 
 		foreach($settingsPages as $sp) {
 			if($sp->sp_filepath) {
