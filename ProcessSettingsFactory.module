@@ -10,7 +10,7 @@ class ProcessSettingsFactory extends Process {
 		return array(
 			'title' 	=> __('Process Settings Factory', __FILE__),
 			'summary' 	=> __('Unlimited settings pages.', __FILE__),
-			'version' 	=> 103,
+			'version' 	=> 104,
 			'permanent' => false,
 			'autoload' 	=> false,
 			'icon' 		=> 'check-square-o',
