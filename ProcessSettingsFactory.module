@@ -11,6 +11,7 @@ class ProcessSettingsFactory extends Process {
 			'title' 	=> __('Process Settings Factory', __FILE__),
 			'summary' 	=> __('Unlimited settings pages.', __FILE__),
 			'version' 	=> 104,
+			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' 	=> false,
 			'icon' 		=> 'check-square-o',
