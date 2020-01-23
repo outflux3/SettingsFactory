@@ -10,7 +10,7 @@ class ProcessSettingsFactory extends Process {
 		return array(
 			'title' 	=> __('Process Settings Factory', __FILE__),
 			'summary' 	=> __('Unlimited settings pages.', __FILE__),
-			'version' 	=> 104,
+			'version' 	=> '1.0.5',
 			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' 	=> false,

@@ -141,7 +141,7 @@
       "description":"Enter a URL",
       "noRelative":1,
       "collapsed":0,
-      "value":"0"
+      "value":""
    },
    {
       "name":"integer_test",
@@ -159,7 +159,7 @@
       "width":"100",
       "description":"Enter an Email Address",
       "collapsed":0,
-      "value":"0"
+      "value":""
    },
    {
       "name":"ckeditor_test",
