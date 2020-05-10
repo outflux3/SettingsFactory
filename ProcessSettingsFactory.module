@@ -10,7 +10,7 @@ class ProcessSettingsFactory extends Process {
 		return array(
 			'title' 	=> __('Process Settings Factory', __FILE__),
 			'summary' 	=> __('Unlimited settings pages.', __FILE__),
-			'version' 	=> '1.0.5',
+			'version' 	=> '1.0.6',
 			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' 	=> false,
@@ -46,9 +46,17 @@ class ProcessSettingsFactory extends Process {
 			$this->session->redirect("./");
 			return '';
 		} else {
-			$moduleInfo = $this->wire('modules')->getModuleInfoVerbose($this->module);
-			$filepath = $this->wire('page')->sp_filepath ? 'Using ' . $this->wire('page')->sp_filepath : 'No Path Specified.';
-			return $form->render() . "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
+			
+			$out = $form->render();
+
+			if($this->wire->user->isSuperuser()) {
+				$moduleInfo = $this->wire('modules')->getModuleInfoVerbose($this->module);
+				$filepath = $this->wire('page')->sp_filepath ? 'Using ' . $this->wire('page')->sp_filepath : 'No Path Specified.';
+				$out .= "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath";
+				$out .= " | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
+			}
+			
+			return $out;
 		}
 
 

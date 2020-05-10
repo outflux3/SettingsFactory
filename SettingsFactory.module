@@ -20,7 +20,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => '1.0.5',
+			'version' => '1.0.6',
 			'author'    => 'Macrura',
 			'permanent' => false,
 			'autoload' => true,
@@ -239,6 +239,20 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 	}
 
+	/**
+	 * @var $key - the settings key
+	 * @var $_key - the setting within the key
+	 * @var $value - the new value
+	 */
+	public function changeSetting($key,$_key,$value) {
+
+		$modData = $this->modules->getConfig('SettingsFactory');
+		if(!array_key_exists($key, $modData)) return;
+		if(!array_key_exists($_key, $modData[$key])) return;
+		$modData[$key][$_key] = $value;
+		$this->modules->saveModuleConfigData('SettingsFactory', $modData);
+
+	}
 
 
 }
