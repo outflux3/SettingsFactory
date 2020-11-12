@@ -137,8 +137,9 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 
 		foreach ($settingsFields as $key => $value) {
 			if ($nonDefaultLanguages && $user->language !== $languages->getDefault()) {
-				if (array_key_exists($key . "__" . $user->language->id, $dataArray)) {
-					$newDataArray[$key] = ($dataArray[$key . "__" . $user->language->id]) ? $dataArray[$key . "__" . $user->language->id] : $dataArray[$key];
+				$key_lang = $key . "__" . $user->language->id;
+				if (array_key_exists($key_lang, $dataArray)) {
+					$newDataArray[$key] = $dataArray[$key_lang] ? $dataArray[$key_lang] : $dataArray[$key];
 				} else {
 					$newDataArray[$key] = $dataArray[$key];
 				}
