@@ -29,12 +29,6 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		);
 	}
 
-	/**
-	* Data as used by the get/set functions
-	*
-	*/
-	protected $data = array();
-
 	protected static $configDefaults = array(
 		'instructions' => '',
 	);
