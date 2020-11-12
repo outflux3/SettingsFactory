@@ -117,7 +117,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 		$inputfieldsArray = new InputfieldWrapper();
 		foreach($inputfields as $field) {
 			if(is_array($field)) $inputfieldsArray->importArray($field);
-			if($field instanceof InputfieldWrapper) $inputfieldsArray->import($field->getAll());
+			elseif($field instanceof InputfieldWrapper) $inputfieldsArray->import($field->getAll());
 		}
 		return $inputfieldsArray->getAll();
 	}
