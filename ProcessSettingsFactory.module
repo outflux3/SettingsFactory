@@ -218,7 +218,8 @@ class ProcessSettingsFactory extends Process {
 				if($f->useLanguages)
 				foreach($nonDefaultLanguages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
 			}
-			$valuesArray[$key] = $f->attr('value');
+			//$valuesArray[$key] = $f->attr('value');
+			$valuesArray[$key] = is_array($f->attr('value')) ? array_values($f->attr('value')) : $f->attr('value');
 		}
 		$myData[$settingsKey] = $valuesArray;
 		$newData = array_merge($this->data,$myData);

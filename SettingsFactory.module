@@ -148,7 +148,8 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule  {
 				} else {
 					$newDataArray[$key] = $dataArray[$key];
 				}
-			} else {
+			//} else {
+			} else if(isset($dataArray[$key])) { // 6/5/20 @martijn
 				$newDataArray[$key] = $dataArray[$key];
 			}
 		}
