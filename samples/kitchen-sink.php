@@ -1,6 +1,4 @@
-<?php
-
-
+<?php namespace ProcessWire;
 $inputfields = array (
   array (
     'name' => 'text1',

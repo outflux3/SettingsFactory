@@ -1,170 +1,141 @@
-<?php
+<?php namespace ProcessWire;
 
 /**
-*
-*/
-
+ * ProcessSettingsFactory
+ *
+ * The admin screen for one settings page: builds a form from the page's definition
+ * file, fills it from SettingsFactory's stored values, and saves what is submitted.
+ *
+ * @author Macrura
+ * @license GPL-2.0
+ *
+ */
 class ProcessSettingsFactory extends Process {
 
 	public static function getModuleInfo() {
 		return array(
-			'title' 	=> __('Process Settings Factory', __FILE__),
-			'summary' 	=> __('Unlimited settings pages.', __FILE__),
-			'version' 	=> '1.0.7',
-			'author'    => 'Macrura',
+			'title' => __('Process Settings Factory', __FILE__),
+			'summary' => __('Unlimited settings pages.', __FILE__),
+			'version' => '1.1.0',
+			'author' => 'Macrura',
 			'permanent' => false,
-			'autoload' 	=> false,
-			'icon' 		=> 'check-square-o',
-			'requires'	=> 'SettingsFactory',
+			'autoload' => false,
+			'icon' => 'check-square-o',
+			'requires' => 'SettingsFactory',
 			'permission' => 'settings-factory',
-			"permissionMethod" => "hasSettingsPagePermission",
-			"permissions" => ["settings-factory" => "Access settings factory pages"],
+			'permissionMethod' => 'hasSettingsPagePermission',
+			'permissions' => array('settings-factory' => 'Access settings factory pages'),
 		);
 	}
 
-
-	protected $module = null;
-
-	protected $settingsKey = null;
+	/**
+	 * @var SettingsFactory|null
+	 *
+	 */
+	protected $factory = null;
 
 	public function init() {
-		$this->module = $this->modules->get('SettingsFactory');
-		$this->data = $this->modules->getConfig('SettingsFactory');
 		parent::init();
+		$this->factory = $this->wire()->modules->get('SettingsFactory');
 	}
 
-	public function ready() {
-		$this->settingsKey = $this->wire('page')->name;
-	}
-
+	/**
+	 * Show the settings form, or save it
+	 *
+	 * @return string
+	 *
+	 */
 	public function ___execute() {
 
 		$form = $this->buildForm();
 
-		if($this->input->post('submit_save')) {
+		if($this->wire()->input->post('submit_save') && $form->get('submit_save')) {
 			$this->processForm($form);
-			$this->session->redirect("./");
+			$this->wire()->session->redirect("./");
 			return '';
-		} else {
-			
-			$out = $form->render();
-
-			if($this->wire->user->isSuperuser()) {
-				$moduleInfo = $this->wire('modules')->getModuleInfoVerbose($this->module);
-				$filepath = $this->wire('page')->sp_filepath ? 'Using ' . $this->wire('page')->sp_filepath : 'No Path Specified.';
-				$out .= "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$moduleInfo[versionStr] | $filepath";
-				$out .= " | <a href='{$this->wire('page')->editUrl}' target='_blank'>Edit Process Settings</a></p>";
-			}
-			
-			return $out;
 		}
 
-
+		return $form->render() . $this->renderFooter();
 	}
 
 	/**
-	* getModuleInfo interface for required permission
-	*
-	* @param array $data
-	* @return bool
-	*
-	*/
+	 * Access check: a permission named like the settings page, else settings-factory
+	 *
+	 * Create a permission with the same name as a settings page (e.g. "theme-settings")
+	 * to limit that screen to the roles that have it.
+	 *
+	 * @param array $data
+	 * @return bool
+	 *
+	 */
 	public static function hasSettingsPagePermission(array $data) {
-
-		$page = $data['page'];
-		$user = $data['user'];
-		$wire = $data['wire'];
-
-		// if there is a specific permission setup for this settings page
-		$permission = $wire->permissions->get("$page->name");
-		if(!$permission->id) $permission = 'settings-factory';
+		$user = isset($data['user']) ? $data['user'] : null;
+		$wire = isset($data['wire']) ? $data['wire'] : null;
+		$page = isset($data['page']) ? $data['page'] : null;
+		if(!$user instanceof User || !$wire) return false;
+		if($user->isSuperuser()) return true;
+		$permission = null;
+		if($page instanceof Page && $page->id && $page->name) $permission = $wire->permissions->get($page->name);
+		if(!$permission || !$permission->id) $permission = 'settings-factory';
 		return $user->hasPermission($permission);
-
 	}
 
-
 	/**
-	* Render form for admin page
-	* @return string form markup
-	*/
+	 * Build the settings form for the current admin page
+	 *
+	 * @return InputfieldForm
+	 *
+	 */
 	protected function buildForm() {
 
-		$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
-		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+		$modules = $this->wire()->modules;
+		$page = $this->wire()->page;
+		$key = $page->name;
 
-		$form = new InputfieldForm();
+		/** @var InputfieldForm $form */
+		$form = $modules->get('InputfieldForm');
 		$form->attr('id', 'ProcessSettingsFactory');
 		$form->attr('method', 'post');
 		$form->attr('action', './');
 
-		$wire = $this->wire;
-		$module = $this->module;
-
-		// ------------------------------------------------------------------------
-		// Notice
-		// ------------------------------------------------------------------------
-		$fDefault = $wire->modules->get('InputfieldMarkup');
-		$fDefault->name  = 'instructions';
-		$fDefault->label = __('Instructions', __FILE__);
-		$fDefault->markupText = __('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.', __FILE__);
-
-		if(!$wire->page->sp_filepath) {
-			$form->add($fDefault);
+		try {
+			$definition = $this->factory->loadDefinition($page);
+		} catch(\Throwable $e) {
+			/** @var InputfieldMarkup $f */
+			$f = $modules->get('InputfieldMarkup');
+			$f->attr('name', 'instructions');
+			$f->label = $this->_('Instructions');
+			$f->icon = 'warning';
+			$f->value = '<p>' . $this->wire()->sanitizer->entities($e->getMessage()) . '</p><p>' .
+				$this->_('Please check that you have correctly specified a path to a valid json or php file that defines your inputfields.') . '</p>';
+			$form->add($f);
+			return $form; // no Save button: saving without a definition would wipe the stored values
 		}
 
-		// ------------------------------------------------------------------------
-		// USER DEFINED FIELDS
-		// ------------------------------------------------------------------------
-		if($wire->page->sp_filepath) {
-			$path = $wire->config->paths->templates .  $wire->page->sp_filepath;
-			$settingsKey = $wire->page->name;
-			$modData = $this->modules->getConfig('SettingsFactory');
-			$thisData = isset($modData[$settingsKey]) ? $modData[$settingsKey] : null;
-			if(file_exists($path)) {
+		// move the definition's top-level items into the form, so WireTabs are direct children
+		foreach($definition->children()->getArray() as $child) $form->add($child);
 
-				$pathParts = pathinfo($path);
+		$stored = $this->factory->getStored($key);
+		if($stored === null) $stored = array();
+		$languages = $this->getNonDefaultLanguages();
 
-				if($pathParts['extension'] == 'json') {
-					$json = file_get_contents($path);
-					$fArray = json_decode($json, true);
+		foreach($this->factory->getValueInputfields($form) as $name => $f) {
+			if(array_key_exists($name, $stored)) $this->setInputfieldValue($f, $stored[$name]);
+			if($f->getSetting('useLanguages')) {
+				foreach($languages as $language) {
+					$langKey = $name . '__' . $language->id;
+					if(array_key_exists($langKey, $stored)) $f->set('value' . $language->id, $stored[$langKey]);
 				}
-
-				if($pathParts['extension'] == 'php') {
-					$fArray = wireRenderFile($path);
-				}
-
-				$form->add($fArray);
-				$inputfields = $this->extractInputfields($fArray);
-				foreach($inputfields as $key => $cField) {
-					$name = $cField['name'];
-					if($thisData && isset($thisData[$name])) {
-						$cField['value'] = $thisData[$name] ?: '';
-					} else {
-						$cField['value'] = '';
-					}
-					$f = $form->get($name);
-					$f->attr('value', $cField['value']);
-
-					if($nonDefaultLanguages) {
-						if($f->useLanguages) {
-							foreach($nonDefaultLanguages as $language) {
-								$f->set("value" . $language->id, $thisData[$name . "__" . $language->id ]);
-							}
-						}
-					}
-
-					if($cField['type'] == 'InputfieldCheckbox' && $cField['value'] == 1) {
-						$f->attr('checked', 'checked');
-					}
-				}
-
-			} else {
-				$fDefault->markupText = __("The specified file was not found. ($path)", __FILE__);
-				$form->add($fDefault);
 			}
 		}
 
-		$f = $this->modules->get('InputfieldSubmit');
+		if($this->hasWireTabs($form)) {
+			$modules->get('JqueryWireTabs');
+			$this->wire()->config->scripts->append($this->wire()->config->urls->SettingsFactory . 'wiretabs-init.js');
+		}
+
+		/** @var InputfieldSubmit $f */
+		$f = $modules->get('InputfieldSubmit');
 		$f->attr('name', 'submit_save');
 		$f->attr('value', $this->_('Save'));
 		$f->addClass('head_button_clone');
@@ -172,63 +143,109 @@ class ProcessSettingsFactory extends Process {
 		$form->add($f);
 
 		return $form;
-
 	}
 
+	/**
+	 * Put a stored value back into an inputfield
+	 *
+	 * @param Inputfield $f
+	 * @param mixed $value
+	 *
+	 */
+	protected function setInputfieldValue(Inputfield $f, $value) {
+		if($f instanceof InputfieldCheckbox) {
+			// a checkbox's value attribute is what it submits; its state is "checked"
+			$checked = !($value === null || $value === false || $value === '' || $value === 0 || $value === '0'
+				|| "$value" === (string) $f->uncheckedValue);
+			$f->attr('checked', $checked ? 'checked' : '');
+			return;
+		}
+		if($f instanceof InputfieldPage && is_array($value)) {
+			// stored as an array of IDs; InputfieldPage accepts "123|456" and turns it into a PageArray
+			$value = implode('|', array_filter(array_map('intval', $value)));
+		}
+		$f->attr('value', $value === null ? '' : $value);
+	}
 
 	/**
-	* Extract the inputfields from nested tabs/fieldsets
-	*/
-	public function extractInputfields($inputfields) {
-		$inputfieldsArray = new InputfieldWrapper();
-		foreach($inputfields as $field) {
-			if(is_array($field)) $inputfieldsArray->importArray($field);
+	 * Save the submitted form
+	 *
+	 * Replaces everything stored for this settings page, as before: fields removed
+	 * from the definition file drop out of the stored data on the next save.
+	 *
+	 * @param InputfieldForm $form
+	 *
+	 */
+	protected function processForm(InputfieldForm $form) {
 
-			if($field instanceof InputfieldWrapper) {
-				if(in_array('WireTab', $field->attributes)) {
-					$this->wire('modules')->get('JqueryWireTabs');
-					$this->wire('config')->scripts->append(wire('config')->urls->SettingsFactory.'wiretabs-init.js');
+		$page = $this->wire()->page;
+		$form->processInput($this->wire()->input->post);
+		$languages = $this->getNonDefaultLanguages();
+
+		$values = array();
+		foreach($this->factory->getValueInputfields($form) as $name => $f) {
+			$values[$name] = $this->factory->normalizeValue($f->attr('value'));
+			if($f->getSetting('useLanguages')) {
+				foreach($languages as $language) {
+					$values[$name . '__' . $language->id] = $this->factory->normalizeValue($f->get('value' . $language->id));
 				}
-				$inputfieldsArray->import($field->getAll());
 			}
 		}
-		return $inputfieldsArray->getAll();
+
+		if($this->factory->saveSettings($page->name, $values, true)) {
+			$this->message(sprintf($this->_('Saved: %s'), $page->title));
+		} else {
+			$this->error(sprintf($this->_('Could not save: %s'), $page->title));
+		}
 	}
-
-
 
 	/**
-	* Process configuration fields and populate to module
-	* @param InputfieldWrapper $form
-	*
-	*/
-	protected function processForm($form) {
-
-    	$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
-		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
-
-		$settingsKey = $this->wire('page')->name;
-		$form->processInput($this->input->post);
-		$thisData = $this->module->get($settingsKey);
-		$valuesArray = array();
-		foreach($thisData as $key => $value) {
-			$f = $form->get($key);
-			if(!$f) continue;
-			if($nonDefaultLanguages) {
-				if($f->useLanguages)
-				foreach($nonDefaultLanguages as $language) $valuesArray[$key . "__" . $language->id ] = $f->get("value" . $language->id );
-			}
-			//$valuesArray[$key] = $f->attr('value');
-			$valuesArray[$key] = is_array($f->attr('value')) ? array_values($f->attr('value')) : $f->attr('value');
+	 * Does the form contain a WireTab wrapper?
+	 *
+	 * @param InputfieldWrapper $form
+	 * @return bool
+	 *
+	 */
+	protected function hasWireTabs(InputfieldWrapper $form) {
+		foreach($form->getAll(array('withWrappers' => true)) as $f) {
+			if($f instanceof InputfieldWrapper && $f->hasClass('WireTab')) return true;
 		}
-		$myData[$settingsKey] = $valuesArray;
-		$newData = array_merge($this->data,$myData);
-
-		$this->modules->saveModuleConfigData('SettingsFactory', $newData);
-		$this->message(sprintf($this->_('Saved: %s'), $this->wire('page')->title));
-
+		return false;
 	}
 
+	/**
+	 * @return Language[]
+	 *
+	 */
+	protected function getNonDefaultLanguages() {
+		$languages = $this->wire()->languages;
+		if(!$languages) return array();
+		$list = array();
+		foreach($languages as $language) {
+			if(!$language->isDefault()) $list[] = $language;
+		}
+		return $list;
+	}
 
+	/**
+	 * Superuser footer: version, definition file, edit link, API call
+	 *
+	 * @return string
+	 *
+	 */
+	protected function renderFooter() {
+		if(!$this->wire()->user->isSuperuser()) return '';
+		$sanitizer = $this->wire()->sanitizer;
+		$page = $this->wire()->page;
+		$info = $this->wire()->modules->getModuleInfoVerbose('SettingsFactory');
+		$filepath = (string) $page->get(SettingsFactory::pathField);
+		$file = strlen($filepath)
+			? sprintf($this->_('Using %s'), '<code>' . $sanitizer->entities($filepath) . '</code>')
+			: $this->_('No Path Specified.');
+		$api = "<code>\$modules->get('SettingsFactory')->getSettings('" . $sanitizer->entities($page->name) . "')</code>";
+		return "<p class='version detail'><i class='fa fa-check-square-o'></i> Settings Factory v$info[versionStr] | $file" .
+			" | <a href='{$page->editUrl}' target='_blank'>" . $this->_('Edit Process Settings') . "</a>" .
+			" | $api</p>";
+	}
 
 }

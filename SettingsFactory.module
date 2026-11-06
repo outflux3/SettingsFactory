@@ -1,255 +1,737 @@
-<?php
+<?php namespace ProcessWire;
 
 /**
-* SettingsFactory
-* Create unlimited settings pages from JSON and PHP
-*
-* @author Macrura
-*
-* ProcessWire 3.x
-* Copyright (C) 2011 by Ryan Cramer
-* Licensed under GNU/GPL v2, see LICENSE.TXT
-*
-* http://www.processwire.com
-* http://www.ryancramer.com
-*
-*/
-class SettingsFactory extends WireData implements Module, ConfigurableModule  {
+ * SettingsFactory
+ *
+ * Create unlimited settings pages from JSON and PHP definition files.
+ *
+ * Each settings screen is an admin page using ProcessSettingsFactory. Its
+ * `sp_filepath` field points at a JSON or PHP file (relative to /site/templates/)
+ * that defines the inputfields, in the same format as module config arrays.
+ * The values are stored in this module's config, keyed by the admin page name:
+ *
+ *     $modules->getConfig('SettingsFactory') === [
+ *         'page-name' => ['field_name' => value, 'field_name__1234' => language value, …],
+ *     ]
+ *
+ * That layout is a public contract — other modules (MetaEngineMigrator) read it directly.
+ *
+ * API (works for any user, guests included; reads stored values only):
+ *
+ *     $factory = $modules->get('SettingsFactory');
+ *     $s = $factory->getSettings('page-name');        // WireData, or null if nothing is stored
+ *     $a = $factory->getSettingsArray('page-name');   // plain array, or null if nothing is stored
+ *     $v = $factory->getSetting('page-name', 'field_name', 'fallback');
+ *
+ * @author Macrura
+ * @license GPL-2.0
+ *
+ * ProcessWire 3.x, Copyright Ryan Cramer
+ * https://processwire.com
+ *
+ */
+class SettingsFactory extends WireData implements Module, ConfigurableModule {
 
 	public static function getModuleInfo() {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => '1.0.7',
-			'author'    => 'Macrura',
+			'version' => '1.1.0',
+			'author' => 'Macrura',
+			'href' => 'https://processwire.com/talk/topic/17536-settings-factory/',
 			'permanent' => false,
-			'autoload' => true,
+			'autoload' => false,
+			'singular' => true,
 			'icon' => 'check-square-o',
-			'installs' => 'ProcessSettingsFactory'
+			'requires' => array('ProcessWire>=3.0.123', 'PHP>=7.1'),
+			'installs' => 'ProcessSettingsFactory',
 		);
 	}
 
-	protected static $configDefaults = array(
-		'instructions' => '',
-	);
+	/**
+	 * Name of the admin-template field that holds the definition file path
+	 *
+	 */
+	const pathField = 'sp_filepath';
 
 	/**
-	* Set our configuration defaults
-	*
-	*/
-	public function __construct() {
-		$configDefaults = self::$configDefaults;
-		foreach($configDefaults as $key => $value) {
-			$this->set($key, $value);
-		}
-	}
-
-
-	public function init() {
-		$this->buildFactory();
-	}
-
-	public function ready() {
-		//$this->buildFactory();
-	}
-
-
-	public function buildFactory() {
-
-		/**
-		* Look for all settings pages, read the name of the page, and and inputfield names into a this module's properties.
-		* thanks @Zeka for fixing this pages find
-		*/
-		$module_id = wire('modules')->getModuleInfo('ProcessSettingsFactory')['id'];
-		$settingsPages = $this->wire('pages')->find("template=admin, process=$module_id");
-
-		foreach($settingsPages as $sp) {
-			if($sp->sp_filepath) {
-				$key = $sp->name;
-				$settingsArray = array();
-				$path = wire('config')->paths->templates .  $sp->sp_filepath;
-				if(file_exists($path)) {
-					$pathParts = pathinfo($path);
-
-					if($pathParts['extension'] == 'json') {
-						$json = file_get_contents($path);
-						$fArray = json_decode($json, true);
-						if($fArray === null) {
-							$this->error('Your json file must return valid JSON array of inputfields.');
-							continue;
-						}
-					}
-
-					if($pathParts['extension'] == 'php') {
-						$fArray = wireRenderFile($path);
-						if($fArray === null) {
-							$this->error('Your php file must return valid array of inputfields.');
-							continue;
-						}
-					}
-
-					// support for WireTabs (or nested wrappers are returned by file)
-					$fArray = $this->extractInputfields($fArray);
-					foreach($fArray as $field) {
-						if(!$field['name']) continue;
-						$value = isset($field['value']) ? $field['value'] : '';
-						$settingsArray[$field['name']] = $value;
-					}
-					$this->set($key, $settingsArray);
-				} // end if file exists
-			} // end if there is a filepath specified
-		} // end foreach pages
-
-
-	}
-
+	 * Log name for definition-file problems found outside the admin
+	 *
+	 */
+	const logName = 'settings-factory';
 
 	/**
-	* Extract the inputfields from nested tabs/fieldsets
-	*/
-	public function extractInputfields($inputfields) {
-		$inputfieldsArray = new InputfieldWrapper();
-		foreach($inputfields as $field) {
-			if(is_array($field)) $inputfieldsArray->importArray($field);
-			elseif($field instanceof InputfieldWrapper) $inputfieldsArray->import($field->getAll());
-		}
-		return $inputfieldsArray->getAll();
-	}
-
-
+	 * Top-level config keys that are module settings, not settings pages
+	 *
+	 */
+	protected static $reservedKeys = array('instructions');
 
 	/**
-	* Get the settings for frontend api.
-	* default to WireArray for returned object
-	*/
+	 * Settings pages indexed by name (null until loaded)
+	 *
+	 * @var Page[]|null
+	 *
+	 */
+	protected $settingsPages = null;
+
+	/**
+	 * Definition cache: key => InputfieldWrapper, or false when it could not be loaded
+	 *
+	 * @var array
+	 *
+	 */
+	protected $definitions = array();
+
+	/**
+	 * Definition load errors: key => message
+	 *
+	 * @var array
+	 *
+	 */
+	protected $definitionErrors = array();
+
+	/**
+	 * Nothing happens here: definitions load lazily, only for the keys a request asks for.
+	 *
+	 */
+	public function init() { }
+
+	/* -------------------------------------------------------------------------
+	 * Front-end API
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * Get the settings for one settings page
+	 *
+	 * Returns the values saved in the admin, for any user, as 1.0.x did for front-end
+	 * requests. It reads only the stored data: no settings page is looked up and no
+	 * definition file is loaded.
+	 *
+	 * In a non-default language, a non-empty language value replaces the default one.
+	 *
+	 * @param string $key Name of the settings admin page
+	 * @param bool $wireData Return WireData (true, default) or a plain array (false)
+	 * @return WireData|array|null Null when nothing is stored for the key
+	 *
+	 */
 	public function getSettings($key, $wireData = true) {
 
-		$languages = ($this->wire('languages')) ? $this->wire('languages') : '';
-		$nonDefaultLanguages = ($languages) ? $languages->findNonDefault() : '';
+		$stored = $this->getStored((string) $key);
+		if(empty($stored)) return null;
 
-		$user = $this->wire('user');
-		$settings = $this->modules->getConfig('SettingsFactory'); // or $this?
-		if(empty($settings[$key])) return;
-		$dataArray = $settings[$key];
-		$settingsFields = $this[$key];
+		$languageId = $this->currentLanguageId();
+		$values = array();
 
-		$newDataArray = array();
-
-		foreach ($settingsFields as $key => $value) {
-			if ($nonDefaultLanguages && $user->language !== $languages->getDefault()) {
-				$key_lang = $key . "__" . $user->language->id;
-				if (array_key_exists($key_lang, $dataArray)) {
-					$newDataArray[$key] = $dataArray[$key_lang] ? $dataArray[$key_lang] : $dataArray[$key];
-				} else {
-					$newDataArray[$key] = $dataArray[$key];
-				}
-			//} else {
-			} else if(isset($dataArray[$key])) { // 6/5/20 @martijn
-				$newDataArray[$key] = $dataArray[$key];
+		foreach($stored as $name => $value) {
+			if($languageId) {
+				$langKey = $name . '__' . $languageId;
+				if(array_key_exists($langKey, $stored) && $stored[$langKey]) $value = $stored[$langKey];
+			} else if($value === null) {
+				continue; // as 1.0.x: isset() dropped null values in the default language
 			}
+			$values[$name] = $value;
 		}
 
-		if(!$wireData) return $newDataArray;
-		// convert to object
-		$key = new WireData();
-		$key->setArray($newDataArray);
-		return $key;
+		if(!$wireData) return $values;
+
+		$data = $this->wire(new WireData());
+		$data->setArray($values);
+		return $data;
 	}
 
 	/**
-	* Get the settings in plain array for frontend api.
-	*/
+	 * Get the settings for one settings page as a plain array
+	 *
+	 * @param string $key
+	 * @return array|null
+	 *
+	 */
 	public function getSettingsArray($key) {
 		return $this->getSettings($key, false);
 	}
 
-
 	/**
-	* Called only when your module is installed
-	*
-	* This version creates a new page with this Process module assigned.
-	*
-	*/
-	public function ___install() {
-		// Check for existence of the field below, throw a message if it already exists
-		if($this->fields->get('sp_filepath') == NULL) {
-			// If it doesn't exist then and create it
-			$field = new Field();
-			$field->type = $this->modules->get("FieldtypeText");
-			$field->name = 'sp_filepath';
-			$field->label = __('Inputfields Definition File Path.');
-			$field->description = __('Path to the file that defines the inputfields - json or php. Relative to templates folder.');
-			$field->notes = __('See the sample settings files included with the module to get started.');
-			//$field->placeholder = __('settings/site-settings.php');
-			$field->showIf = 'process=ProcessSettingsFactory';
-			$field->save();
-		}
-
-		// add to admin template, set visibility to only for the process
-		$adminTemplate = $this->templates->get('admin');
-		$adminTemplate->fields->add($field);
-		$adminTemplate->fields->save();
-		$this->message(__("Added field 'sp_filepath' to admin template."));
+	 * Get a single setting value
+	 *
+	 * @param string $key Name of the settings admin page
+	 * @param string $name Field name within it
+	 * @param mixed $default Returned when the setting is unknown or null
+	 * @return mixed
+	 *
+	 */
+	public function getSetting($key, $name, $default = null) {
+		$values = $this->getSettings($key, false);
+		if(!is_array($values) || !array_key_exists($name, $values) || $values[$name] === null) return $default;
+		return $values[$name];
 	}
 
 	/**
-	* Called only when your module is uninstalled
-	* This should return the site to the same state it was in before the module was installed.
-	*
-	*/
+	 * Change one setting and save it
+	 *
+	 * As in 1.0.x, the setting must already be stored (the settings screen has been
+	 * saved since the field was added). Use saveSettings() to add new values.
+	 *
+	 * @param string $key Name of the settings admin page
+	 * @param string $name Field name within it (a language value is "name__languageID")
+	 * @param mixed $value
+	 * @return bool True if saved
+	 *
+	 */
+	public function changeSetting($key, $name, $value) {
+		$stored = $this->getStored((string) $key);
+		if($stored === null || !array_key_exists($name, $stored)) return false;
+		return $this->saveSettings($key, array($name => $value));
+	}
+
+	/**
+	 * Save settings values for a key
+	 *
+	 * @param string $key Name of the settings admin page
+	 * @param array $values Field name => value
+	 * @param bool $replace Replace everything stored for the key (true) or merge into it (false, default)
+	 * @return bool
+	 *
+	 */
+	public function saveSettings($key, array $values, $replace = false) {
+		$key = (string) $key;
+		if(!strlen($key) || in_array($key, self::$reservedKeys, true)) return false;
+		foreach($values as $name => $value) $values[$name] = $this->normalizeValue($value);
+		$modules = $this->wire()->modules;
+		$data = $modules->getConfig($this);
+		if(!is_array($data)) $data = array();
+		$current = isset($data[$key]) && is_array($data[$key]) ? $data[$key] : array();
+		$data[$key] = $replace ? $values : array_merge($current, $values);
+		return (bool) $modules->saveConfig($this, $data);
+	}
+
+	/**
+	 * Delete everything stored for a key (e.g. data left behind by a deleted settings page)
+	 *
+	 * @param string $key
+	 * @return bool True if something was deleted
+	 *
+	 */
+	public function deleteSettings($key) {
+		$modules = $this->wire()->modules;
+		$data = $modules->getConfig($this);
+		if(!is_array($data) || !isset($data[$key]) || in_array($key, self::$reservedKeys, true)) return false;
+		unset($data[$key]);
+		return (bool) $modules->saveConfig($this, $data);
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Settings pages and definitions
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * Get all settings admin pages (excluding trashed ones), indexed by name
+	 *
+	 * @param bool $refresh
+	 * @return Page[]
+	 *
+	 */
+	public function getSettingsPages($refresh = false) {
+		if($this->settingsPages !== null && !$refresh) return $this->settingsPages;
+		$this->settingsPages = array();
+		$modules = $this->wire()->modules;
+		$moduleId = $modules->isInstalled('ProcessSettingsFactory') ? $modules->getModuleID('ProcessSettingsFactory') : 0;
+		if(!$moduleId) return $this->settingsPages;
+		// include=all: settings pages live under the admin, which find() otherwise filters by access
+		$found = $this->wire()->pages->find("template=admin, process=$moduleId, include=all, sort=name");
+		foreach($found as $p) {
+			if($p->isTrash()) continue;
+			$this->settingsPages[$p->name] = $p;
+		}
+		return $this->settingsPages;
+	}
+
+	/**
+	 * Get the settings admin page for a key
+	 *
+	 * @param string $key
+	 * @return Page|null
+	 *
+	 */
+	public function getSettingsPage($key) {
+		$settingsPages = $this->getSettingsPages();
+		return isset($settingsPages[$key]) ? $settingsPages[$key] : null;
+	}
+
+	/**
+	 * Get the names of all settings pages
+	 *
+	 * @return array
+	 *
+	 */
+	public function getSettingsKeys() {
+		return array_keys($this->getSettingsPages());
+	}
+
+	/**
+	 * Get stored keys that no longer have a settings page
+	 *
+	 * @return array
+	 *
+	 */
+	public function getOrphanKeys() {
+		$orphans = array();
+		$settingsPages = $this->getSettingsPages();
+		foreach($this->getStoredData() as $key => $values) {
+			if(!isset($settingsPages[$key])) $orphans[] = $key;
+		}
+		return $orphans;
+	}
+
+	/**
+	 * Resolve a definition file path (relative to /site/templates/) to an absolute path
+	 *
+	 * @param string $filepath
+	 * @return string Absolute path, or blank if the file does not exist or lies outside the site root
+	 *
+	 */
+	public function resolveDefinitionPath($filepath) {
+		$config = $this->wire()->config;
+		$filepath = ltrim(trim((string) $filepath), '/');
+		if(!strlen($filepath)) return '';
+		$path = realpath($config->paths->templates . $filepath);
+		$root = realpath($config->paths->root);
+		if($path === false || $root === false || !is_file($path)) return '';
+		if(strpos($path, rtrim($root, '/') . '/') !== 0) return '';
+		return $path;
+	}
+
+	/**
+	 * Load a settings page's definition, freshly built (uncached)
+	 *
+	 * Used by the admin form, which needs Inputfields of its own to populate.
+	 *
+	 * @param string|Page $key Settings page or its name
+	 * @return InputfieldWrapper
+	 * @throws WireException with a message describing what is wrong
+	 *
+	 */
+	public function loadDefinition($key) {
+		$page = $key instanceof Page ? $key : $this->getSettingsPage((string) $key);
+		if(!$page || !$page->id) throw new WireException(sprintf($this->_('No settings page named "%s".'), (string) $key));
+		$filepath = trim((string) $page->get(self::pathField));
+		if(!strlen($filepath)) throw new WireException($this->_('No definition file path is set for this settings page.'));
+		$path = $this->resolveDefinitionPath($filepath);
+		if(!$path) throw new WireException(sprintf($this->_('The definition file was not found: %s'), $filepath));
+		return $this->loadDefinitionFile($path);
+	}
+
+	/**
+	 * Load a definition file into an InputfieldWrapper
+	 *
+	 * JSON files hold an array of inputfield definitions. PHP files return such an
+	 * array, an Inputfield, or an InputfieldWrapper (e.g. of WireTab wrappers).
+	 *
+	 * @param string $path Absolute path
+	 * @return InputfieldWrapper
+	 * @throws WireException
+	 *
+	 */
+	public function loadDefinitionFile($path) {
+
+		$ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+		$file = basename($path);
+
+		if($ext === 'json') {
+			$definition = json_decode((string) file_get_contents($path), true);
+			if(!is_array($definition)) {
+				throw new WireException(sprintf($this->_('%1$s is not a valid JSON array of inputfields (%2$s).'), $file, json_last_error_msg()));
+			}
+		} else if($ext === 'php') {
+			$definition = $this->wire()->files->render($path, array(), array(
+				'allowedPaths' => array(dirname($path) . '/'),
+			));
+			if(is_string($definition)) {
+				throw new WireException(strlen(trim($definition))
+					? sprintf($this->_('%s produced output instead of returning its inputfields. Check for whitespace or text outside the PHP tags.'), $file)
+					: sprintf($this->_('%s must return an array of inputfields or an InputfieldWrapper.'), $file)
+				);
+			}
+		} else {
+			throw new WireException(sprintf($this->_('%s: definition files must be .json or .php'), $file));
+		}
+
+		if($definition instanceof InputfieldWrapper) return $definition;
+
+		$wrapper = $this->wire(new InputfieldWrapper());
+		if($definition instanceof Inputfield) {
+			$wrapper->add($definition);
+			return $wrapper;
+		}
+		if(!is_array($definition)) {
+			throw new WireException(sprintf($this->_('%s must return an array of inputfields or an InputfieldWrapper.'), $file));
+		}
+
+		// one item at a time keeps the file's order when arrays and Inputfield objects are mixed
+		foreach($definition as $name => $item) {
+			if($item instanceof Inputfield) {
+				$wrapper->add($item);
+			} else if(is_array($item)) {
+				$wrapper->importArray(array($name => $item));
+			}
+		}
+
+		return $wrapper;
+	}
+
+	/**
+	 * Get a settings page's definition (cached per request)
+	 *
+	 * Never throws: a definition that cannot be loaded returns null, and the reason
+	 * is available from getDefinitionError() and the settings-factory log.
+	 *
+	 * @param string $key
+	 * @return InputfieldWrapper|null
+	 *
+	 */
+	public function getDefinition($key) {
+		$key = (string) $key;
+		if(array_key_exists($key, $this->definitions)) return $this->definitions[$key] ?: null;
+		$this->definitions[$key] = false;
+		if(!$this->getSettingsPage($key)) return null; // not a settings page: nothing to report
+		try {
+			$this->definitions[$key] = $this->loadDefinition($key);
+		} catch(\Throwable $e) {
+			$this->definitionErrors[$key] = $e->getMessage();
+			$this->wire()->log->save(self::logName, "$key: " . $e->getMessage());
+		}
+		return $this->definitions[$key] ?: null;
+	}
+
+	/**
+	 * Why a settings page's definition could not be loaded (blank if it loaded or was never asked for)
+	 *
+	 * @param string $key
+	 * @return string
+	 *
+	 */
+	public function getDefinitionError($key) {
+		return isset($this->definitionErrors[$key]) ? $this->definitionErrors[$key] : '';
+	}
+
+	/**
+	 * Get the definition defaults for a key: field name => default value
+	 *
+	 * Loads the definition file, so it is meant for admin-side code; getSettings() never calls it.
+	 *
+	 * @param string $key
+	 * @return array|null Null when the key has no loadable definition
+	 *
+	 */
+	public function getDefaults($key) {
+		$definition = $this->getDefinition($key);
+		if(!$definition) return null;
+		$defaults = array();
+		foreach($this->getValueInputfields($definition) as $name => $f) {
+			$defaults[$name] = $this->getDefaultValue($f);
+		}
+		return $defaults;
+	}
+
+	/**
+	 * Get the inputfields that hold values, indexed by name
+	 *
+	 * Wrappers, fieldsets, markup and buttons are left out.
+	 *
+	 * @param InputfieldWrapper $wrapper
+	 * @return Inputfield[]
+	 *
+	 */
+	public function getValueInputfields(InputfieldWrapper $wrapper) {
+		$inputfields = array();
+		foreach($wrapper->getAll() as $f) {
+			if(!$this->isValueInputfield($f)) continue;
+			$name = (string) $f->attr('name');
+			if(!strlen($name) || isset($inputfields[$name])) continue;
+			$inputfields[$name] = $f;
+		}
+		return $inputfields;
+	}
+
+	/**
+	 * Does this inputfield hold a value worth storing?
+	 *
+	 * @param Inputfield $f
+	 * @return bool
+	 *
+	 */
+	public function isValueInputfield(Inputfield $f) {
+		if($f instanceof InputfieldWrapper) return false;
+		if($f instanceof InputfieldMarkup) return false;
+		if($f instanceof InputfieldSubmit) return false;
+		if($f instanceof InputfieldButton) return false;
+		return true;
+	}
+
+	/**
+	 * The default value an inputfield's definition gives
+	 *
+	 * A checkbox's `value` is the value it submits when checked, so its default
+	 * comes from `checked` instead.
+	 *
+	 * @param Inputfield $f
+	 * @return mixed
+	 *
+	 */
+	public function getDefaultValue(Inputfield $f) {
+		if($f instanceof InputfieldCheckbox) {
+			return $f->attr('checked') ? $f->checkedValue : $f->uncheckedValue;
+		}
+		$value = $this->normalizeValue($f->attr('value'));
+		if($value === null) return ''; // what the field would save if left empty
+		// a multi-value field defined with "value": "" holds [""]: no option is selected
+		if(is_array($value)) $value = array_values(array_filter($value, function($v) { return $v !== '' && $v !== null; }));
+		return $value;
+	}
+
+	/**
+	 * Convert an inputfield value to something that stores as JSON
+	 *
+	 * Pages become IDs and PageArrays become arrays of IDs, matching what
+	 * PageListSelect and AsmSelect settings have always stored.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 *
+	 */
+	public function normalizeValue($value) {
+		if($value instanceof Page) return $value->id;
+		if($value instanceof PageArray) return array_values(array_map('intval', $value->explode('id')));
+		if($value instanceof WireArray) $value = $value->getArray();
+		if(is_array($value)) {
+			foreach($value as $k => $v) $value[$k] = $this->normalizeValue($v);
+			return array_values($value);
+		}
+		if(is_object($value)) return method_exists($value, '__toString') ? (string) $value : null;
+		return $value;
+	}
+
+	/**
+	 * Extract the inputfields from nested tabs/fieldsets
+	 *
+	 * Kept for backwards compatibility.
+	 *
+	 * @param array|InputfieldWrapper $inputfields
+	 * @return InputfieldsArray
+	 *
+	 */
+	public function extractInputfields($inputfields) {
+		$wrapper = $this->wire(new InputfieldWrapper());
+		if($inputfields instanceof InputfieldWrapper) {
+			$wrapper = $inputfields;
+		} else if(is_array($inputfields) || $inputfields instanceof \Traversable) {
+			foreach($inputfields as $field) {
+				if(is_array($field)) $wrapper->importArray(array($field));
+				else if($field instanceof Inputfield) $wrapper->add($field);
+			}
+		}
+		return $wrapper->getAll();
+	}
+
+	/**
+	 * Preload every settings page's definition
+	 *
+	 * @deprecated Definitions now load on demand; there is no need to call this.
+	 *
+	 */
+	public function buildFactory() {
+		foreach($this->getSettingsKeys() as $key) $this->getDefinition($key);
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Stored data
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * All stored settings, keyed by settings page name (module settings excluded)
+	 *
+	 * @return array
+	 *
+	 */
+	public function getStoredData() {
+		$data = $this->wire()->modules->getConfig($this);
+		$stored = array();
+		if(!is_array($data)) return $stored;
+		foreach($data as $key => $values) {
+			if(!is_array($values) || in_array($key, self::$reservedKeys, true)) continue;
+			$stored[$key] = $values;
+		}
+		return $stored;
+	}
+
+	/**
+	 * Stored values for one key, or null if nothing is stored
+	 *
+	 * @param string $key
+	 * @return array|null
+	 *
+	 */
+	public function getStored($key) {
+		$stored = $this->getStoredData();
+		return isset($stored[$key]) ? $stored[$key] : null;
+	}
+
+	/**
+	 * Stored field names, without their "__languageID" variants
+	 *
+	 * @param array $stored
+	 * @return array
+	 *
+	 */
+	protected function storedNames(array $stored) {
+		$names = array();
+		foreach(array_keys($stored) as $name) {
+			$name = (string) $name;
+			if(preg_match('/^(.+)__\d+$/', $name, $m) && array_key_exists($m[1], $stored)) continue;
+			$names[] = $name;
+		}
+		return $names;
+	}
+
+	/**
+	 * ID of the current user's language when it is not the default, otherwise 0
+	 *
+	 * @return int
+	 *
+	 */
+	protected function currentLanguageId() {
+		$languages = $this->wire()->languages;
+		if(!$languages) return 0;
+		$language = $this->wire()->user->language;
+		if(!$language || !$language->id || $language->isDefault()) return 0;
+		return (int) $language->id;
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Install / uninstall / config
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * Install: create the definition-path field and add it to the admin template
+	 *
+	 */
+	public function ___install() {
+		$fields = $this->wire()->fields;
+		$field = $fields->get(self::pathField);
+		if(!$field) {
+			$field = $this->wire(new Field());
+			$field->type = $this->wire()->modules->get('FieldtypeText');
+			$field->name = self::pathField;
+			$field->label = $this->_('Inputfields Definition File Path');
+			$field->description = $this->_('Path to the file that defines the inputfields - json or php. Relative to templates folder.');
+			$field->notes = $this->_('See the sample settings files included with the module to get started.');
+			$field->showIf = 'process=ProcessSettingsFactory';
+			$fields->save($field);
+		}
+		$adminTemplate = $this->wire()->templates->get('admin');
+		if(!$adminTemplate->fieldgroup->hasField($field)) {
+			$adminTemplate->fieldgroup->add($field);
+			$adminTemplate->fieldgroup->save();
+			$this->message(sprintf($this->_("Added field '%s' to admin template."), self::pathField));
+		}
+	}
+
+	/**
+	 * Uninstall: back up stored settings, then remove the definition-path field
+	 *
+	 * ProcessWire deletes a module's config when it is uninstalled, and that config is
+	 * every settings value on the site. A JSON copy is written first so it can be restored
+	 * with $modules->saveConfig('SettingsFactory', json_decode($json, true)).
+	 *
+	 */
 	public function ___uninstall() {
 
-		// 1) Remove the path field from the template
-		$adminTemplate = $this->templates->get('admin');
-		if($adminTemplate->fields->get('sp_filepath')) {
-			$adminTemplate->fields->remove($adminTemplate->fields->get('sp_filepath'));
-			$adminTemplate->fields->save();
+		$data = $this->wire()->modules->getConfig($this);
+		if(is_array($data) && count($data)) {
+			$files = $this->wire()->files;
+			$dir = $this->wire()->config->paths->assets . 'backups/SettingsFactory/';
+			if(!is_dir($dir)) $files->mkdir($dir, true);
+			$file = $dir . 'settings-' . date('Y-m-d-His') . '.json';
+			if($files->filePutContents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))) {
+				$this->message(sprintf($this->_('Stored settings were backed up to %s'), $file));
+			}
 		}
 
-		// 2) Remove the field sp_filepath
-		if($this->fields->get('sp_filepath')) {
-			$field = $this->fields->get('sp_filepath');
-			$this->fields->delete($field);
+		$fields = $this->wire()->fields;
+		$field = $fields->get(self::pathField);
+		if($field) {
+			$adminTemplate = $this->wire()->templates->get('admin');
+			if($adminTemplate->fieldgroup->hasField($field)) {
+				$adminTemplate->fieldgroup->remove($field);
+				$adminTemplate->fieldgroup->save();
+			}
+			$fields->delete($field);
 		}
-
-	}
-
-
-	public static function getModuleConfigInputfields(array $data) {
-
-		foreach(self::$configDefaults as $key => $value) {
-			if(!isset($data[$key])||$data[$key]=="") $data[$key] = $value;
-		}
-
-		$inputfields = new InputfieldWrapper();
-
-		/* INSTRUCTIONS
-		------------------------------------------------------------------------ */
-		$f = wire('modules')->get('InputfieldMarkup');
-		$f->name  = 'instructions';
-		$f->label = __('Instructions', __FILE__);
-		//$f->markupText = __('Create your processes then enter a path to the json or php definition file of the fields in the path field.', __FILE__);
-		$f->markupText = __('Create your processes then enter a path to the json or php definition file of the fields in the path field. For more in depth instructions see the README.md.', __FILE__);
-		$inputfields->add($f);
-
-		return $inputfields;
-
 	}
 
 	/**
-	 * @var $key - the settings key
-	 * @var $_key - the setting within the key
-	 * @var $value - the new value
+	 * Module config: an overview of every settings page and anything left behind
+	 *
+	 * @param InputfieldWrapper $inputfields
+	 *
 	 */
-	public function changeSetting($key,$_key,$value) {
+	public function getModuleConfigInputfields(InputfieldWrapper $inputfields) {
 
-		$modData = $this->modules->getConfig('SettingsFactory');
-		if(!array_key_exists($key, $modData)) return;
-		if(!array_key_exists($_key, $modData[$key])) return;
-		$modData[$key][$_key] = $value;
-		$this->modules->saveModuleConfigData('SettingsFactory', $modData);
+		$sanitizer = $this->wire()->sanitizer;
+		$modules = $this->wire()->modules;
 
+		/** @var InputfieldMarkup $f */
+		$f = $modules->get('InputfieldMarkup');
+		$f->attr('name', 'instructions'); // same name as before 1.1.0, so nothing new is stored
+		$f->label = $this->_('Settings pages');
+		$f->icon = 'list';
+		$f->description = $this->_('Create a page under Admin (or Setup), choose the ProcessSettingsFactory process, then enter the path to a json or php definition file in its "Inputfields Definition File Path" field. See the README for details.');
+
+		$stored = $this->getStoredData();
+		$settingsPages = $this->getSettingsPages(true);
+
+		if(!count($settingsPages)) {
+			$f->value = '<p>' . $this->_('No settings pages yet.') . '</p>';
+		} else {
+			/** @var MarkupAdminDataTable $table */
+			$table = $modules->get('MarkupAdminDataTable');
+			$table->setEncodeEntities(false);
+			$table->headerRow(array(
+				$this->_('Settings page'),
+				$this->_('Key'),
+				$this->_('Definition file'),
+				$this->_('Fields'),
+				$this->_('Saved values'),
+			));
+			foreach($settingsPages as $key => $p) {
+				$definition = $this->getDefinition($key);
+				$error = $this->getDefinitionError($key);
+				$status = $definition
+					? count($this->getValueInputfields($definition))
+					: "<span class='ui-state-error-text'><i class='fa fa-warning'></i> " . $sanitizer->entities($error) . "</span>";
+				$table->row(array(
+					"<a href='{$p->url}'>" . $sanitizer->entities($p->get('title|name')) . "</a>",
+					"<code>" . $sanitizer->entities($key) . "</code>",
+					"<code>" . $sanitizer->entities((string) $p->get(self::pathField)) . "</code>",
+					$status,
+					isset($stored[$key]) ? count($this->storedNames($stored[$key])) : 0,
+				));
+			}
+			$f->value = $table->render();
+		}
+
+		$orphans = $this->getOrphanKeys();
+		if(count($orphans)) {
+			$list = '';
+			foreach($orphans as $key) {
+				$list .= "<li><code>" . $sanitizer->entities($key) . "</code> (" . count($this->storedNames($stored[$key])) . ")</li>";
+			}
+			$f->value .= '<h3>' . $this->_('Stored data without a settings page') . '</h3>' .
+				'<p>' . $this->_('These keys hold saved values but no longer have a settings page (it was deleted, renamed or trashed, or the data came from another site). getSettings() still returns their values.') . '</p>' .
+				"<ul>$list</ul>" .
+				'<p class="detail">' . $this->_('To remove one:') . " <code>\$modules->get('SettingsFactory')->deleteSettings('key');</code></p>";
+		}
+
+		$inputfields->add($f);
 	}
-
 
 }

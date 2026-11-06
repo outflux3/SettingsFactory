@@ -1,5 +1,4 @@
-<?php
-
+<?php namespace ProcessWire;
 /**
  * since you can only return 1 array to the module, you have to wrap 
  * the tabs in an inputfield wrapper
