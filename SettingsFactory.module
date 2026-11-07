@@ -36,7 +36,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => '1.1.0',
+			'version' => '1.2.0',
 			'author' => 'Macrura',
 			'href' => 'https://processwire.com/talk/topic/17536-settings-factory/',
 			'permanent' => false,
@@ -64,7 +64,13 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 	 * Top-level config keys that are module settings, not settings pages
 	 *
 	 */
-	protected static $reservedKeys = array('instructions');
+	protected static $reservedKeys = array('instructions', self::migratedKey);
+
+	/**
+	 * Config key holding screens moved to SettingsEngine: key => SettingsEngine set name
+	 *
+	 */
+	const migratedKey = '__migrated';
 
 	/**
 	 * Settings pages indexed by name (null until loaded)
@@ -115,6 +121,18 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 	 *
 	 */
 	public function getSettings($key, $wireData = true) {
+
+		// moved to SettingsEngine: read it from there, in the same shapes
+		$target = $this->migratedTarget((string) $key);
+		if($target !== null) {
+			$engine = $this->settingsEngine();
+			$values = $engine ? $engine->values($target) : null;
+			if($values === null) return null;
+			if(!$wireData) return $values;
+			$data = $this->wire(new WireData());
+			$data->setArray($values);
+			return $data;
+		}
 
 		$stored = $this->getStored((string) $key);
 		if(empty($stored)) return null;
@@ -178,6 +196,13 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 	 *
 	 */
 	public function changeSetting($key, $name, $value) {
+		$target = $this->migratedTarget((string) $key);
+		if($target !== null) {
+			$engine = $this->settingsEngine();
+			$stored = $engine ? $engine->store()->get($target) : null;
+			if($stored === null || !array_key_exists($name, $stored)) return false;
+			return $engine->save($target, array($name => $value));
+		}
 		$stored = $this->getStored((string) $key);
 		if($stored === null || !array_key_exists($name, $stored)) return false;
 		return $this->saveSettings($key, array($name => $value));
@@ -195,6 +220,11 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 	public function saveSettings($key, array $values, $replace = false) {
 		$key = (string) $key;
 		if(!strlen($key) || in_array($key, self::$reservedKeys, true)) return false;
+		$target = $this->migratedTarget($key);
+		if($target !== null) {
+			$engine = $this->settingsEngine();
+			return $engine ? $engine->save($target, $values, !$replace) : false;
+		}
 		foreach($values as $name => $value) $values[$name] = $this->normalizeValue($value);
 		$modules = $this->wire()->modules;
 		$data = $modules->getConfig($this);
@@ -217,6 +247,74 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 		if(!is_array($data) || !isset($data[$key]) || in_array($key, self::$reservedKeys, true)) return false;
 		unset($data[$key]);
 		return (bool) $modules->saveConfig($this, $data);
+	}
+
+	/* -------------------------------------------------------------------------
+	 * Moving to SettingsEngine
+	 * ---------------------------------------------------------------------- */
+
+	/**
+	 * Screens moved to SettingsEngine
+	 *
+	 * getSettings(), getSettingsArray(), getSetting(), changeSetting() and saveSettings()
+	 * for these keys read and write SettingsEngine instead, so template code keeps working.
+	 *
+	 * @return array SettingsFactory key => SettingsEngine set name
+	 *
+	 */
+	public function getMigrated() {
+		$data = $this->wire()->modules->getConfig($this);
+		return is_array($data) && isset($data[self::migratedKey]) && is_array($data[self::migratedKey]) ? $data[self::migratedKey] : array();
+	}
+
+	/**
+	 * Record that a key moved to SettingsEngine, and remove its values here
+	 *
+	 * Called by SettingsEngineMigrator once the values are in SettingsEngine and compared.
+	 *
+	 * @param string $key SettingsFactory key
+	 * @param string $setName SettingsEngine set name
+	 * @return bool
+	 *
+	 */
+	public function markMigrated($key, $setName) {
+		$key = (string) $key;
+		$setName = (string) $setName;
+		if(!strlen($key) || !strlen($setName) || in_array($key, self::$reservedKeys, true)) return false;
+		$modules = $this->wire()->modules;
+		$data = $modules->getConfig($this);
+		if(!is_array($data)) $data = array();
+		unset($data[$key]);
+		if(!isset($data[self::migratedKey]) || !is_array($data[self::migratedKey])) $data[self::migratedKey] = array();
+		$data[self::migratedKey][$key] = $setName;
+		return (bool) $modules->saveConfig($this, $data);
+	}
+
+	/**
+	 * SettingsEngine set a key moved to, or null
+	 *
+	 * @param string $key
+	 * @return string|null
+	 *
+	 */
+	protected function migratedTarget($key) {
+		$migrated = $this->getMigrated();
+		return isset($migrated[$key]) && strlen((string) $migrated[$key]) ? (string) $migrated[$key] : null;
+	}
+
+	/**
+	 * @return SettingsEngine|null
+	 *
+	 */
+	protected function settingsEngine() {
+		$modules = $this->wire()->modules;
+		if(!$modules->isInstalled('SettingsEngine')) {
+			static $logged = false; // once per request
+			if(!$logged) $this->wire()->log->save(self::logName, 'Some keys were moved to SettingsEngine, which is not installed: they return null.');
+			$logged = true;
+			return null;
+		}
+		return $modules->get('SettingsEngine');
 	}
 
 	/* -------------------------------------------------------------------------
@@ -717,6 +815,17 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 				));
 			}
 			$f->value = $table->render();
+		}
+
+		$migrated = $this->getMigrated();
+		if(count($migrated)) {
+			$list = '';
+			foreach($migrated as $key => $setName) {
+				$list .= "<li><code>" . $sanitizer->entities($key) . "</code> → <code>" . $sanitizer->entities($setName) . "</code></li>";
+			}
+			$f->value .= '<h3>' . $this->_('Moved to Settings Engine') . '</h3>' .
+				'<p>' . $this->_('These screens are edited in Setup → Settings now. getSettings() calls for them read Settings Engine, so templates keep working.') . '</p>' .
+				"<ul>$list</ul>";
 		}
 
 		$orphans = $this->getOrphanKeys();

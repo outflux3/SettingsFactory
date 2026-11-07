@@ -127,6 +127,22 @@ $modules->saveConfig('SettingsFactory', json_decode(file_get_contents($file), tr
 
 Stored values, the API and what `getSettings()` returns are unchanged. See `CHANGELOG.md` for the fixes and additions.
 
+## Moving to Settings Engine
+
+[Settings Engine](https://github.com/outflux3/SettingsEngine) is the successor: every
+settings screen in one place, with search, its own storage, and secret fields. Its
+**Settings Engine Migrator** moves SettingsFactory screens over one at a time, after
+copying and comparing their values.
+
+From 1.2.0, SettingsFactory knows which keys have moved. `getSettings()`,
+`getSettingsArray()`, `getSetting()`, `changeSetting()` and `saveSettings()` for those keys
+read and write Settings Engine, so template code keeps working. Change the calls to
+`$settingsEngine->get('key')` when convenient. `getMigrated()` lists the moved keys, and
+Modules > Settings Factory shows them.
+
+Keep SettingsFactory installed until no template code calls it. The migrator lists every
+call with its file and line.
+
 ## Support
 
 https://processwire.com/talk/topic/17536-settings-factory/

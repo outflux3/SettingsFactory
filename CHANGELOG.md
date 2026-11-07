@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0 — 2026-11-06
+
+### Added
+- **Hand-over to Settings Engine.** For keys moved by Settings Engine Migrator,
+  `getSettings()`, `getSettingsArray()`, `getSetting()`, `changeSetting()` and
+  `saveSettings()` read and write Settings Engine, in the same shapes, so template
+  code keeps working.
+- **`getMigrated()`** lists moved keys, with the Settings Engine set each one became.
+- **`markMigrated($key, $setName)`**, used by the migrator, records a move and removes the
+  key's values here. They are in the migrator's backup.
+- **Overview.** The module config screen lists moved keys.
+
+### Changed
+- **Reserved config key.** `__migrated` holds the moved keys. It is never treated as a
+  settings key.
+
 ## 1.1.0 — 2026-11-06
 
 Stored data and the front-end API are unchanged: `getSettings()`, `getSettingsArray()`
