@@ -143,10 +143,15 @@ Stored values, the API and what `getSettings()` returns are unchanged. See `CHAN
 
 ## Moving to Settings Engine
 
-[Settings Engine](https://github.com/outflux3/SettingsEngine) is the successor: every
-settings screen in one place, with search, its own storage, and secret fields. Its
-**Settings Engine Migrator** moves SettingsFactory screens over one at a time, after
-copying and comparing their values.
+> **Settings Engine is not released.** It is in use on the author's own sites, and there
+> is no public download yet. If you would use it, say so in the
+> [support thread](https://processwire.com/talk/topic/17536-settings-factory/): interest
+> decides whether and how it is released. Until then, SettingsFactory is maintained as it
+> is, and nothing below changes how it works for you.
+
+Settings Engine is the successor: every settings screen in one place, with search, its
+own storage, and secret fields. Its **Settings Engine Migrator** moves SettingsFactory
+screens over one at a time, after copying and comparing their values.
 
 From 1.2.0, SettingsFactory knows which keys have moved. `getSettings()`,
 `getSettingsArray()`, `getSetting()`, `changeSetting()` and `saveSettings()` for those keys
