@@ -8,6 +8,11 @@
   matched. Paths are compared with forward slashes; `resolveDefinitionPath()` still returns
   the path as `realpath()` gave it. Thanks to theoretic (outflux3/SettingsFactory#11).
 
+### Docs
+- **README: values aren't HTML-encoded.** Settings come back as saved, with no text
+  formatters, unlike page fields. The README says so under *How to use on the front end*
+  and shows how to encode text or run a formatter (outflux3/SettingsFactory#5).
+
 ## 1.2.0 — 2026-11-06
 
 ### Added

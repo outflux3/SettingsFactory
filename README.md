@@ -93,6 +93,20 @@ These work for any visitor, guests included. They read the saved values only, an
 
 In a non-default language, a field's language value is returned when it is not empty; otherwise the default-language value is.
 
+**Values come back as they were saved: not HTML-encoded, and with no text formatters.** A page field's value is entity-encoded on output when the field has a formatter that does that; a setting is not. Encode text when you output it, as you would with any input:
+
+```php
+echo $sanitizer->entities($weather->city);                        // text
+echo "<a href='" . $sanitizer->entities($weather->api_url) . "'>"; // in an attribute
+echo $weather->intro;                                             // CKEditor/TinyMCE: already markup, output as is
+
+$note = (string) $weather->note;
+$modules->get('TextformatterMarkdownExtra')->format($note);      // a text formatter, called yourself: changes $note in place
+echo $note;
+```
+
+Markup fields (CKEditor, TinyMCE) hold HTML that the editor cleaned when it was saved, so they are output as is. Any other text is plain: encode it, or pass it through the text formatter you want.
+
 ### Changing values from code
 
 ```php
