@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 — 2026-11-24
+
+### Fixed
+- **Windows: "The definition file was not found" on every settings screen.** `realpath()`
+  returns backslashes there, so the check that a definition file is inside the site never
+  matched. Paths are compared with forward slashes; `resolveDefinitionPath()` still returns
+  the path as `realpath()` gave it. Thanks to theoretic (outflux3/SettingsFactory#11).
+
 ## 1.2.0 — 2026-11-06
 
 ### Added

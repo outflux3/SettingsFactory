@@ -36,7 +36,7 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => __('Settings Factory', __FILE__),
 			'summary' => __('Create Unlimited Settings Pages!', __FILE__),
-			'version' => '1.2.0',
+			'version' => '1.2.1',
 			'author' => 'Macrura',
 			'href' => 'https://processwire.com/talk/topic/17536-settings-factory/',
 			'permanent' => false,
@@ -394,10 +394,11 @@ class SettingsFactory extends WireData implements Module, ConfigurableModule {
 		$path = realpath($config->paths->templates . $filepath);
 		$root = realpath($config->paths->root);
 		if($path === false || $root === false || !is_file($path)) return '';
-		// realpath() returns backslashes on Windows; compare with forward slashes
-		$path = str_replace('\\', '/', $path);
-		$root = rtrim(str_replace('\\', '/', $root), '/') . '/';
-		if(strpos($path, $root) !== 0) return '';
+		// realpath() returns backslashes on Windows; compare with forward slashes, but return
+		// the path as realpath() gave it, so it still matches other realpath() results
+		$inside = str_replace('\\', '/', $path);
+		$prefix = rtrim(str_replace('\\', '/', $root), '/') . '/';
+		if(strpos($inside, $prefix) !== 0) return '';
 		return $path;
 	}
 
